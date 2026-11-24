@@ -2,6 +2,8 @@
 
 pub const CHAIN_ID: &str = "qorechain-diana";
 pub const CHAIN_EVM_ID: &str = "9800";
+pub const CHAIN_GAS_PRICE: &str = "0.15uqor";
+pub const CHAIN_REST_URL: &str = "https://api-testnet.qore.host";
 pub const ROLLUP_ID: &str = "sdiqt-1";
 pub const ROLLUP_EXECUTION_VM: &str = "qledger-v1";
 pub const ROLLUP_CHALLENGE_WINDOW_S: u64 = 3_600;

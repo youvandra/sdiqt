@@ -1,0 +1,23 @@
+{
+  "name": "@sdiqt/chain",
+  "version": "0.1.0",
+  "description": "QoreChain access for SDIQT: retrying REST, simulate-first transactions and a daily spend cap",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cosmjs/proto-signing": "0.39.0",
+    "@cosmjs/stargate": "0.39.0",
+    "@qorechain/rdk": "0.9.0",
+    "@sdiqt/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "5.1.1"
+  }
+}

@@ -2,6 +2,8 @@
 
 export const CHAIN_ID = "qorechain-diana";
 export const CHAIN_EVM_ID = "9800";
+export const CHAIN_GAS_PRICE = "0.15uqor";
+export const CHAIN_REST_URL = "https://api-testnet.qore.host";
 export const ROLLUP_ID = "sdiqt-1";
 export const ROLLUP_EXECUTION_VM = "qledger-v1";
 export const ROLLUP_CHALLENGE_WINDOW_S = 3600n;
