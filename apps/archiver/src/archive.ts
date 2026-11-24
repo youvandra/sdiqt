@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { bytesToHex, EMPTY_INBOX_ACC, inboxAccumulate, type RdkClient } from "@qorechain/rdk";
 import {
   ArchiveError,
+  ArchiveLagError,
   BATCH_EVENT,
   type BatchRecord,
   batchRecords,
@@ -105,15 +106,17 @@ export async function catchUp(input: {
   const old = await readArchive(dir);
   const from = input.fromHeight ?? maxHeight([...old.entries, ...old.batches]);
 
+  // Read the head before searching: the index then holds at least as much as
+  // the head unless it lags, and entries past the head are simply not checked yet.
+  const inbox = await client.rest.getInbox(rollupId);
   const search = (event: string) => {
     const q = `${event}.rollup_id='${rollupId}'${from > 0n ? ` AND tx.height>=${from}` : ""}`;
     return client.rest.searchTxs(q, { maxPages: 1000 }) as Promise<TxResponse[]>;
   };
-  const [posts, deposits, batches, inbox] = await Promise.all([
+  const [posts, deposits, batches] = await Promise.all([
     search(POST_EVENT),
     search(DEPOSIT_EVENT),
     search(BATCH_EVENT),
-    client.rest.getInbox(rollupId),
   ]);
 
   const entries = mergeInbox(
@@ -132,10 +135,12 @@ export async function catchUp(input: {
 
   const head = String(inbox.headSequence);
   const upToHead = entries.filter((e) => BigInt(e.sequence) <= BigInt(head));
+  if (upToHead.length < Number(head)) {
+    throw new ArchiveLagError(rollupId, String(upToHead.length), head);
+  }
   const headAccMatches =
-    upToHead.length === Number(head) &&
     replayAccumulator(chainId, rollupId, upToHead) ===
-      inbox.headAcc.replace(/^0x/, "").toLowerCase();
+    inbox.headAcc.replace(/^0x/, "").toLowerCase();
   if (!headAccMatches) {
     throw new ArchiveError(
       `replayed inbox accumulator of ${rollupId} does not match the chain head ${head}`,

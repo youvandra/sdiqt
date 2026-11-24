@@ -68,7 +68,23 @@ export interface TxResponse {
 }
 
 export class ArchiveError extends Error {
-  override readonly name = "ArchiveError";
+  override readonly name: string = "ArchiveError";
+}
+
+/**
+ * The tx index has not yet caught up with the inbox head: every archived entry
+ * is contiguous but the last ones up to the head are not indexed yet. Nothing
+ * was written; the next run normally succeeds.
+ */
+export class ArchiveLagError extends ArchiveError {
+  override readonly name = "ArchiveLagError";
+  readonly archived: string;
+  readonly head: string;
+  constructor(rollupId: string, archived: string, head: string) {
+    super(`tx index of ${rollupId} reaches sequence ${archived}, inbox head is ${head}`);
+    this.archived = archived;
+    this.head = head;
+  }
 }
 
 function attrs(ev: {

@@ -18,6 +18,7 @@ const USAGE = `sdiqt-operator <shadow|history|live> [options]
   --archive <dir>        default data/archive
   --prover <path>        sdiqt-prove binary, default target/release/sdiqt-prove
   --interval <s>         seconds between ticks, default 15
+  --heartbeat <s>        log a heartbeat this often, default 600 (0 = off)
   --duration <s>         stop after this long (shadow), default forever
   --log <file>           JSONL log, default data/operator/<rollup>.jsonl
   --control <file>       run | pause | drain, default data/operator/control
@@ -31,6 +32,7 @@ const { values, positionals } = parseArgs({
     archive: { type: "string", default: "data/archive" },
     prover: { type: "string", default: "target/release/sdiqt-prove" },
     interval: { type: "string", default: "15" },
+    heartbeat: { type: "string", default: "600" },
     duration: { type: "string" },
     log: { type: "string" },
     control: { type: "string", default: "data/operator/control" },
@@ -83,6 +85,7 @@ const op = new Operator({
   ...(operator ? { operator } : {}),
   ...(submit ? { submit } : {}),
   controlFile: values.control,
+  heartbeatTicks: Math.round(Number(values.heartbeat) / Number(values.interval)),
   log,
 });
 
