@@ -98,6 +98,18 @@ export const ApiSubmissionV1 = z.strictObject({
   qstr_tx: TxHash.nullable(),
   claim: ApiProofClaim.nullable(),
   note: z.string().nullable(),
+  /** What the tower did about this submission when re-execution disagreed. */
+  challenge: z
+    .strictObject({
+      status: z.enum(["watch", "refused", "failed", "sent", "upheld", "dismissed"]),
+      reason: z.string().nullable(),
+      challenge_tx: TxHash.nullable(),
+      honest_state_root: Hex32,
+      at: z.iso.datetime(),
+      resolved_at: z.iso.datetime().nullable(),
+      resubmitted_tx: TxHash.nullable(),
+    })
+    .nullable(),
   timeline: z.array(
     z.strictObject({ settlement: Settlement, validity: Validity, issued_at: z.iso.datetime() }),
   ),

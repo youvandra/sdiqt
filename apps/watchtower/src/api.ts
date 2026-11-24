@@ -150,6 +150,7 @@ export function batchDetail(o: ApiOptions, i: string): ApiBatchDetailV1 {
         qstr_tx: r.qstr_tx?.toUpperCase() ?? null,
         claim: r.claim ? ApiProofClaim.parse(JSON.parse(r.claim)) : null,
         note: r.note,
+        challenge: challengeOf(o.store, r.key),
         timeline: o.store.timeline(r.key).map((t) => ({
           settlement: t.receipt.body.settlement,
           validity: t.receipt.body.validity,
@@ -158,6 +159,21 @@ export function batchDetail(o: ApiOptions, i: string): ApiBatchDetailV1 {
       };
     }),
   });
+}
+
+function challengeOf(store: TowerStore, key: string) {
+  const c = store.challenge(key);
+  return c
+    ? {
+        status: c.status,
+        reason: c.reason,
+        challenge_tx: c.txhash?.toUpperCase() ?? null,
+        honest_state_root: c.honest_state_root,
+        at: isoAt(c.at),
+        resolved_at: c.resolved_at ? isoAt(c.resolved_at) : null,
+        resubmitted_tx: c.resubmitted_tx?.toUpperCase() ?? null,
+      }
+    : null;
 }
 
 export function receipt(o: ApiOptions, i: string): ApiReceiptV1 {

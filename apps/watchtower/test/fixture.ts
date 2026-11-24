@@ -12,7 +12,14 @@ import {
   qstrFromManifest,
   toHex,
 } from "@sdiqt/protocol";
-import { bundleName, type LoadedBundle, Tower, type TowerChain, TowerStore } from "../src/index.ts";
+import {
+  bundleName,
+  type Challenger,
+  type LoadedBundle,
+  Tower,
+  type TowerChain,
+  TowerStore,
+} from "../src/index.ts";
 
 const CHAIN = "qorechain-diana";
 export const ROLLUP = "rdk-v328-e2e-mwd5v89d";
@@ -50,7 +57,15 @@ function manifestFor(b: BatchRecord): BundleManifestV1 {
 }
 
 export function setup(
-  opts: { qstrFor?: BatchRecord[]; verifyValid?: boolean; tip?: bigint; now?: () => Date } = {},
+  opts: {
+    qstrFor?: BatchRecord[];
+    verifyValid?: boolean;
+    tip?: bigint;
+    now?: () => Date;
+    /** Chain status per batch index; "missing" drops the record. Default finalized. */
+    status?: (index: string) => string | undefined;
+    challenger?: Challenger;
+  } = {},
 ) {
   const dir = mkdtempSync(join(tmpdir(), "sdiqt-tower-"));
   const archive = join(dir, ROLLUP);
@@ -74,16 +89,27 @@ export function setup(
   }
   writeFileSync(join(archive, "inbox.jsonl"), inbox.map((r) => `${JSON.stringify(r)}\n`).join(""));
 
-  // The chain as it stands: the live submission at each index, finalized.
+  // The chain as it stands: the latest submission at each index.
+  let world = [...batches];
   const live = new Map<string, BatchRecord>();
-  for (const b of batches) live.set(b.batch_index, b);
+  const setBatches = (list: BatchRecord[]) => {
+    world = list;
+    live.clear();
+    for (const b of list) live.set(b.batch_index, b);
+    writeFileSync(
+      join(archive, "batches.jsonl"),
+      list.map((b) => `${JSON.stringify(b)}\n`).join(""),
+    );
+  };
+  setBatches(world);
   const chain: TowerChain = {
     async batch(_r, index) {
       const b = live.get(index);
-      return b
+      const status = opts.status?.(index) ?? "finalized";
+      return b && status !== "missing"
         ? {
             kind: "found",
-            status: "finalized",
+            status,
             stateRoot: b.state_root,
             withdrawalsRoot: b.withdrawals_root,
             dataHash: b.data_hash,
@@ -93,7 +119,7 @@ export function setup(
         : { kind: "missing" };
     },
     anchors: async () =>
-      batches.map((b) => ({
+      world.map((b) => ({
         layerHeight: Number(b.batch_index),
         stateRoot: b.state_root,
         anchoredAt: 1_794_464_647,
@@ -126,6 +152,7 @@ export function setup(
         ? { valid: false, ms: 1, error: "chunk 0 proof rejected" }
         : { valid: true, ms: 1 },
     now: opts.now ?? (() => new Date(1_794_464_647_000 + 600_000)),
+    ...(opts.challenger ? { challenger: opts.challenger } : {}),
   });
-  return { tower, store, events, keys };
+  return { tower, store, events, keys, setBatches };
 }
