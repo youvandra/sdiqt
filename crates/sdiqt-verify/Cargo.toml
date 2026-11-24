@@ -1,0 +1,21 @@
+[package]
+name = "sdiqt-verify"
+version = "0.1.0"
+description = "Verify SDIQT chunk proofs (SP1 compressed STARKs) natively or in WebAssembly"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+wasm = ["dep:wasm-bindgen", "dep:getrandom"]
+
+[dependencies]
+sp1-verifier = "6.10.0"
+thiserror = "2"
+wasm-bindgen = { version = "0.2", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"], optional = true }
