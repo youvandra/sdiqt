@@ -17,6 +17,8 @@ use serde::{Deserialize, Serialize};
 
 use qledger_core::*;
 
+pub mod input;
+
 /// How signatures are checked inside the statement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SigMode {

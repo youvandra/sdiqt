@@ -1,7 +1,7 @@
 [package]
 name = "sdiqt-verify"
 version = "0.1.0"
-description = "Verify SDIQT chunk proofs (SP1 compressed STARKs) natively or in WebAssembly"
+description = "Verify SDIQT chunk proofs and proof bundles (SP1 compressed STARKs) natively or in WebAssembly"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -9,11 +9,21 @@ repository.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "sdiqt-verify"
+path = "src/bin/sdiqt-verify.rs"
+
 [features]
 wasm = ["dep:wasm-bindgen", "dep:getrandom"]
 
 [dependencies]
+sdiqt-statement = { path = "../sdiqt-statement" }
 sp1-verifier = "6.10.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+hex = "0.4"
+bincode = "1"
 thiserror = "2"
 wasm-bindgen = { version = "0.2", optional = true }
 

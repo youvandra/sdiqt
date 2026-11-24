@@ -3309,6 +3309,7 @@ dependencies = [
  "libc",
  "qledger-core",
  "sdiqt-statement",
+ "sdiqt-verify",
  "serde",
  "serde_json",
  "sp1-build",
@@ -3329,7 +3330,13 @@ dependencies = [
 name = "sdiqt-verify"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "getrandom 0.2.15",
+ "hex",
+ "sdiqt-statement",
+ "serde",
+ "serde_json",
+ "sha2",
  "sp1-verifier",
  "thiserror 2.0.12",
  "wasm-bindgen",
