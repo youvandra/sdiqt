@@ -1,7 +1,9 @@
 {
   "chain": {
     "id": "qorechain-diana",
-    "evm_id": "9800"
+    "evm_id": "9800",
+    "gas_price": "0.15uqor",
+    "rest_url": "https://api-testnet.qore.host"
   },
   "rollup": {
     "id": "sdiqt-1",
