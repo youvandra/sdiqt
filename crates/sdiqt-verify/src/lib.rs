@@ -154,6 +154,50 @@ fn check_claim(claim: &BatchClaim, m: &Manifest) -> Result<(), VerifyError> {
     }
 }
 
+/// Split `joined` into consecutive proofs of the given `lengths`, the layout
+/// the wasm entry point takes so it needs no JS array types.
+pub fn split_proofs(joined: &[u8], lengths: &[u32]) -> Result<Vec<Vec<u8>>, VerifyError> {
+    let total: usize = lengths.iter().map(|&n| n as usize).sum();
+    if total != joined.len() {
+        return Err(VerifyError::Field(
+            "proofs",
+            format!(
+                "lengths add up to {total} bytes, {} were given",
+                joined.len()
+            ),
+        ));
+    }
+    let mut at = 0;
+    Ok(lengths
+        .iter()
+        .map(|&n| {
+            let p = joined[at..at + n as usize].to_vec();
+            at += n as usize;
+            p
+        })
+        .collect())
+}
+
+/// Verify a bundle from its manifest JSON and its chunk proofs.
+pub fn verify_bundle_json(
+    manifest_json: &str,
+    proofs: &[Vec<u8>],
+    expected_vkey_hash: Option<&str>,
+) -> Result<BatchClaim, VerifyError> {
+    let manifest: Manifest = serde_json::from_str(manifest_json)
+        .map_err(|e| VerifyError::Field("manifest", e.to_string()))?;
+    if manifest.format != bundle::BUNDLE_FORMAT || manifest.version != bundle::BUNDLE_VERSION {
+        return Err(VerifyError::Field(
+            "manifest",
+            format!(
+                "unsupported format {} v{}",
+                manifest.format, manifest.version
+            ),
+        ));
+    }
+    verify_bundle(&manifest, proofs, expected_vkey_hash)
+}
+
 #[cfg(feature = "wasm")]
 mod wasm {
     use wasm_bindgen::prelude::*;
@@ -167,6 +211,23 @@ mod wasm {
         vkey_hash: &[u8],
     ) -> Result<(), JsError> {
         super::verify_chunk(proof, public_values, vkey_hash)
+            .map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    /// Whole-bundle entry point: `proofs` holds every chunk proof back to back
+    /// and `lengths` their sizes, in chunk order. Returns on a valid bundle
+    /// whose linked claim equals its manifest and throws the reason otherwise.
+    #[wasm_bindgen(js_name = verifyBundle)]
+    pub fn verify_bundle(
+        manifest_json: &str,
+        proofs: &[u8],
+        lengths: &[u32],
+        expected_vkey_hash: Option<String>,
+    ) -> Result<(), JsError> {
+        let proofs =
+            super::split_proofs(proofs, lengths).map_err(|e| JsError::new(&e.to_string()))?;
+        super::verify_bundle_json(manifest_json, &proofs, expected_vkey_hash.as_deref())
+            .map(|_| ())
             .map_err(|e| JsError::new(&e.to_string()))
     }
 }

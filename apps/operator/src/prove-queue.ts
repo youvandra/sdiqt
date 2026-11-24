@@ -17,6 +17,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { BatchRecord } from "@sdiqt/archiver";
 import { BundleManifestV1, manifestSha256, PROVER_PROOF_DEADLINE_S } from "@sdiqt/protocol";
+import { manifestVsBatch } from "@sdiqt/verify";
 import type { LogEvent } from "./operator.ts";
 
 export type JobState = "queued" | "proving" | "proven" | "mismatch" | "failed";
@@ -73,20 +74,8 @@ export interface ProveQueueOptions {
 export const jobKey = (b: Pick<BatchRecord, "txhash" | "msg_index">) =>
   `${b.txhash}:${b.msg_index}`;
 
-const ROOT_FIELDS = [
-  ["parent_root", "prev_state_root"],
-  ["state_root", "state_root"],
-  ["withdrawals_root", "withdrawals_root"],
-  ["data_hash", "data_hash"],
-  ["inbox_from", "inbox_start"],
-  ["inbox_end", "inbox_end"],
-  ["batch_index", "batch_index"],
-] as const;
-
-/** Fields where a bundle manifest disagrees with the chain's batch. */
-export function manifestVsBatch(m: BundleManifestV1, b: BatchRecord): string[] {
-  return ROOT_FIELDS.filter(([mk, bk]) => m[mk] !== b[bk]).map(([mk]) => mk);
-}
+/** Fields where a bundle manifest disagrees with the chain's batch (one home: @sdiqt/verify). */
+export { manifestVsBatch };
 
 export class ProveQueue {
   private readonly o: ProveQueueOptions;

@@ -48,6 +48,9 @@ importers:
       '@sdiqt/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@sdiqt/verify':
+        specifier: workspace:*
+        version: link:../../packages/verify
     devDependencies:
       '@types/node':
         specifier: 22.20.5
@@ -86,6 +89,19 @@ importers:
       zod:
         specifier: 4.6.7
         version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      vitest:
+        specifier: 5.1.1
+        version: 5.1.1(@types/node@22.20.5)(vite@8.3.8(@types/node@22.20.5))
+
+  packages/verify:
+    dependencies:
+      '@sdiqt/protocol':
+        specifier: workspace:*
+        version: link:../protocol
     devDependencies:
       '@types/node':
         specifier: 22.20.5

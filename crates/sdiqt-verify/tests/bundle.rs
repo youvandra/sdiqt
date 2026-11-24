@@ -165,3 +165,28 @@ fn the_manifest_is_canonical_and_stable() {
     );
     std::fs::remove_dir_all(&tmp).unwrap();
 }
+
+#[test]
+fn the_json_entry_point_takes_joined_proofs() {
+    let (m, proofs) = load();
+    let json = std::fs::read_to_string(dir().join("manifest.json")).unwrap();
+    let joined: Vec<u8> = proofs.concat();
+    let lengths: Vec<u32> = proofs.iter().map(|p| p.len() as u32).collect();
+    let split = sdiqt_verify::split_proofs(&joined, &lengths).unwrap();
+    assert_eq!(split, proofs);
+    let claim =
+        sdiqt_verify::verify_bundle_json(&json, &split, Some(&m.program_vkey_hash)).unwrap();
+    assert_eq!(claim.chunks, proofs.len());
+}
+
+#[test]
+fn the_json_entry_point_refuses_bad_input() {
+    let (_, proofs) = load();
+    let json = std::fs::read_to_string(dir().join("manifest.json")).unwrap();
+    let joined: Vec<u8> = proofs.concat();
+    assert!(sdiqt_verify::split_proofs(&joined, &[1, 2]).is_err());
+    let other = json.replace("\"version\":\"1\"", "\"version\":\"2\"");
+    assert!(sdiqt_verify::verify_bundle_json(&other, &proofs, None).is_err());
+    let extra = json.replacen('{', "{\"extra\":\"x\",", 1);
+    assert!(sdiqt_verify::verify_bundle_json(&extra, &proofs, None).is_err());
+}

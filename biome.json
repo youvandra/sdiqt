@@ -6,7 +6,14 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/target", "!**/dist", "!**/node_modules", "!vectors"]
+    "includes": [
+      "**",
+      "!**/target",
+      "!**/dist",
+      "!**/node_modules",
+      "!vectors",
+      "!packages/verify/wasm"
+    ]
   },
   "formatter": {
     "indentStyle": "space",
