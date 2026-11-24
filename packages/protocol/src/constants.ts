@@ -13,3 +13,5 @@ export const PROVER_SP1_VERSION = "6.10.0";
 export const PROVER_CHUNK_MAX_SIGNED_ENTRIES = 4n;
 export const PROVER_CHUNK_MAX_CYCLES = 6100000n;
 export const PROVER_PROOF_DEADLINE_S = 3300n;
+export const QSTR_VERSION = 1n;
+export const QSTR_MAX_BYTES = 1024n;

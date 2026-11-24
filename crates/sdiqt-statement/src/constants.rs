@@ -13,3 +13,5 @@ pub const PROVER_SP1_VERSION: &str = "6.10.0";
 pub const PROVER_CHUNK_MAX_SIGNED_ENTRIES: u64 = 4;
 pub const PROVER_CHUNK_MAX_CYCLES: u64 = 6_100_000;
 pub const PROVER_PROOF_DEADLINE_S: u64 = 3_300;
+pub const QSTR_VERSION: u64 = 1;
+pub const QSTR_MAX_BYTES: u64 = 1_024;
