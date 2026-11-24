@@ -2,6 +2,7 @@
 //!
 //!   sdiqt-prove golden-input [--entries N]          print the RDK golden batch as a batch input
 //!   sdiqt-prove from-archive <dir> (--batch-tx H | --all) [--out <dir>]
+//!   sdiqt-prove claim < inputs.jsonl > claims.jsonl  host claim per batch input (operator self-check)
 //!   sdiqt-prove execute <input.json> [--chunk-size N] [--mode full|v0]
 //!   sdiqt-prove prove <input.json> --out <dir> [--chunk-size N] [--mode full|v0]
 //!
@@ -98,6 +99,12 @@ enum Cmd {
         #[command(flatten)]
         chunks: ChunkArgs,
     },
+    /// Read batch inputs as JSON lines on stdin and write each host claim as
+    /// a JSON line on stdout (the operator's Rust self-check).
+    Claim {
+        #[command(flatten)]
+        chunks: ChunkArgs,
+    },
     /// Run every chunk in the zkVM without proving; report cycles.
     Execute {
         input: PathBuf,
@@ -133,6 +140,7 @@ fn main() -> ExitCode {
             &chain_id,
             &chunks,
         ),
+        Cmd::Claim { chunks } => claims(&chunks),
         Cmd::Execute { input, chunks } => execute(&input, &chunks),
         Cmd::Prove { input, out, chunks } => prove(&input, &out, &chunks),
     };
@@ -272,6 +280,44 @@ fn from_archive(
         }
     }
     println!("{matched} of {} batches match the chain", chosen.len());
+    Ok(())
+}
+
+fn host_claim(input: &BatchInput, args: &ChunkArgs) -> Result<BatchClaim> {
+    let (parent, chunks) = input
+        .chunk_inputs(args.chunk_size, args.mode.into())
+        .map_err(|e| e.to_string())?;
+    let outputs: Vec<ChunkOutput> = chunks.iter().map(run_chunk).collect();
+    link_chunks(&parent.root(), &outputs).map_err(|e| format!("host chunks do not link: {e:?}"))
+}
+
+fn claims(args: &ChunkArgs) -> Result<()> {
+    use std::io::{BufRead, Write};
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+    for line in std::io::stdin().lock().lines() {
+        let line = line.map_err(|e| e.to_string())?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let reply = match serde_json::from_str::<BatchInput>(&line)
+            .map_err(|e| e.to_string())
+            .and_then(|input| host_claim(&input, args).map(|c| (input, c)))
+        {
+            Ok((input, c)) => serde_json::json!({
+                "batch_index": input.batch_index,
+                "inbox_from": c.inbox_from.to_string(),
+                "inbox_end": c.inbox_end.to_string(),
+                "parent_root": hex::encode(c.parent_root),
+                "state_root": hex::encode(c.state_root),
+                "withdrawals_root": hex::encode(&c.withdrawals_root),
+                "data_hash": hex::encode(c.data_hash),
+            }),
+            Err(e) => serde_json::json!({ "error": e }),
+        };
+        writeln!(out, "{reply}").map_err(|e| e.to_string())?;
+        out.flush().map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 
