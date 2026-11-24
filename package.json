@@ -1,0 +1,19 @@
+{
+  "name": "sdiqt",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=22.14"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "lint": "biome check .",
+    "check:hygiene": "node scripts/check-hygiene.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.8",
+    "typescript": "5.9.3"
+  }
+}
