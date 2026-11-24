@@ -11,7 +11,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { chooseQledgerBatchEnd, type RdkClient } from "@qorechain/rdk";
-import { type BatchRecord, catchUp, readArchive } from "@sdiqt/archiver";
+import { ArchiveLagError, type BatchRecord, catchUp, readArchive } from "@sdiqt/archiver";
 import { type BatchPlan, type BatchRoots, planBatch, shouldBatch } from "./plan.ts";
 import { InboxReplay } from "./replay.ts";
 import { dualSelfCheck, type RustClaimer } from "./selfcheck.ts";
@@ -36,6 +36,8 @@ export interface OperatorOptions {
   submit?: Submitter;
   /** A file holding `run`, `pause` or `drain`; missing means `run`. */
   controlFile?: string;
+  /** Log a `heartbeat` every this many ticks (0 = never), so idle and dead differ. */
+  heartbeatTicks?: number;
   log: (e: LogEvent) => void;
 }
 
@@ -59,9 +61,11 @@ export class Operator {
   private readonly o: OperatorOptions;
   private readonly replay: InboxReplay;
   private seen: Set<string> | undefined;
+  private ticks = 0;
   /** Shadow plans by inbox start, matched when the chain's batch for that start lands. */
   private readonly wouldSubmit = new Map<string, BatchRoots>();
   readonly stats = {
+    indexLags: 0,
     chainBatches: 0,
     chainMatched: 0,
     plans: 0,
@@ -123,7 +127,15 @@ export class Operator {
 
   async tick(): Promise<void> {
     const { client, chainId, rollupId, archiveDir, log } = this.o;
-    await catchUp({ client, chainId, rollupId, dir: archiveDir });
+    this.ticks += 1;
+    try {
+      await catchUp({ client, chainId, rollupId, dir: archiveDir });
+    } catch (err) {
+      if (!(err instanceof ArchiveLagError)) throw err;
+      // The index trails the head for a block or two; skip this tick quietly.
+      this.stats.indexLags += 1;
+      return log({ event: "index_lag", archived: err.archived, head: err.head });
+    }
     const { entries, batches } = await readArchive(archiveDir);
     this.replay.setEntries(entries);
     const [inbox, tip] = await Promise.all([client.rest.getInbox(rollupId), client.getChainTip()]);
@@ -166,6 +178,16 @@ export class Operator {
             : {}),
         });
       }
+    }
+
+    const every = this.o.heartbeatTicks ?? 0;
+    if (every > 0 && this.ticks % every === 0) {
+      log({
+        event: "heartbeat",
+        head: inbox.headSequence,
+        consumed: inbox.consumedSequence,
+        ...this.stats,
+      });
     }
 
     const control = await this.control();
