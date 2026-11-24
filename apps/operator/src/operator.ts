@@ -13,6 +13,7 @@ import { readFile } from "node:fs/promises";
 import { chooseQledgerBatchEnd, type RdkClient } from "@qorechain/rdk";
 import { ArchiveLagError, type BatchRecord, catchUp, readArchive } from "@sdiqt/archiver";
 import { type BatchPlan, type BatchRoots, planBatch, shouldBatch } from "./plan.ts";
+import type { ProveQueue } from "./prove-queue.ts";
 import { InboxReplay } from "./replay.ts";
 import { dualSelfCheck, type RustClaimer } from "./selfcheck.ts";
 
@@ -36,6 +37,8 @@ export interface OperatorOptions {
   submit?: Submitter;
   /** A file holding `run`, `pause` or `drain`; missing means `run`. */
   controlFile?: string;
+  /** When set, every chain batch that lands after start is queued for proving. */
+  proveQueue?: ProveQueue;
   /** Log a `heartbeat` every this many ticks (0 = never), so idle and dead differ. */
   heartbeatTicks?: number;
   log: (e: LogEvent) => void;
@@ -177,8 +180,12 @@ export class Operator {
             ? { our_plan: `${planned.inboxFrom}..${planned.inboxEnd}`, plan_equal: planMatch }
             : {}),
         });
+        // Any bonded submitter may batch our inbox (audit H4): prove whatever landed.
+        if (this.o.proveQueue) await this.o.proveQueue.enqueue(b);
       }
     }
+
+    if (this.o.proveQueue && this.o.proveQueue.pending() > 0) void this.o.proveQueue.pump();
 
     const every = this.o.heartbeatTicks ?? 0;
     if (every > 0 && this.ticks % every === 0) {
@@ -187,6 +194,7 @@ export class Operator {
         head: inbox.headSequence,
         consumed: inbox.consumedSequence,
         ...this.stats,
+        ...(this.o.proveQueue ? { prove_pending: this.o.proveQueue.pending() } : {}),
       });
     }
 
