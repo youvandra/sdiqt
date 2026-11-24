@@ -3305,6 +3305,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdiqt-verify"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.2.15",
+ "sp1-verifier",
+ "thiserror 2.0.12",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "sec1"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

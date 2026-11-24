@@ -1,9 +1,15 @@
 [workspace]
 resolver = "2"
-members = ["crates/qledger-core", "crates/sdiqt-statement", "crates/sdiqt-guest", "crates/sdiqt-prover"]
+members = [
+  "crates/qledger-core",
+  "crates/sdiqt-statement",
+  "crates/sdiqt-guest",
+  "crates/sdiqt-prover",
+  "crates/sdiqt-verify",
+]
 # CI builds and tests these; the SP1 guest and prover need the SP1 toolchain
 # and are built on a prover machine with `-p sdiqt-prover`.
-default-members = ["crates/qledger-core", "crates/sdiqt-statement"]
+default-members = ["crates/qledger-core", "crates/sdiqt-statement", "crates/sdiqt-verify"]
 
 [workspace.package]
 edition = "2021"

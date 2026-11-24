@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SDIQT chunk verify</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; margin: 2rem; max-width: 40rem; }
+    pre { background: #f4f4f4; padding: 1rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Chunk proof check</h1>
+  <p>Loads one compressed chunk proof, verifies it in WebAssembly, then flips one byte and verifies again.</p>
+  <pre id="log">running...</pre>
+  <script type="module">
+    import init, { verifyChunk } from "./pkg/sdiqt_verify.js";
+
+    const log = (line) => {
+      const el = document.getElementById("log");
+      el.textContent = el.textContent === "running..." ? line : `${el.textContent}\n${line}`;
+      console.log(line);
+    };
+    const bytes = async (path) => new Uint8Array(await (await fetch(path)).arrayBuffer());
+
+    async function check(label, proof, pv, vkey) {
+      const t = performance.now();
+      try {
+        verifyChunk(proof, pv, vkey);
+        log(`${label}: VALID in ${(performance.now() - t).toFixed(1)} ms`);
+      } catch (err) {
+        log(`${label}: INVALID in ${(performance.now() - t).toFixed(1)} ms (${err.message})`);
+      }
+    }
+
+    await init();
+    const dir = new URLSearchParams(location.search).get("dir") ?? "proof";
+    const [proof, pv, vkey] = await Promise.all([
+      bytes(`${dir}/chunk-0.proof.bin`),
+      bytes(`${dir}/chunk-0.pv.bin`),
+      bytes(`${dir}/vkey-hash.bin`),
+    ]);
+    log(`proof ${proof.length} bytes, public values ${pv.length} bytes`);
+    await check("original", proof, pv, vkey);
+    const flipped = proof.slice();
+    flipped[Math.floor(flipped.length / 2)] ^= 1;
+    await check("one byte flipped", flipped, pv, vkey);
+  </script>
+</body>
+</html>

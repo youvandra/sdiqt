@@ -23,3 +23,5 @@ AGENTS.md
 .DS_Store
 .idea/
 .vscode/
+crates/sdiqt-verify/examples/web/pkg/
+crates/sdiqt-verify/examples/web/proof/
