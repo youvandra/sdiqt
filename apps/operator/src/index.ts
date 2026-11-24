@@ -1,5 +1,7 @@
 export * from "./operator.ts";
 export * from "./plan.ts";
+export * from "./prove-queue.ts";
+export * from "./prover-process.ts";
 export * from "./qstr.ts";
 export * from "./replay.ts";
 export * from "./rust-claimer.ts";

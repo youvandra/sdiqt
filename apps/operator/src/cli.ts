@@ -5,6 +5,8 @@ import { parseArgs } from "node:util";
 import { connectAccount, createChainClient, parseGasPrice, SafeTx, SpendCap } from "@sdiqt/chain";
 import { BundleManifestV1, CHAIN_GAS_PRICE, CHAIN_ID, ROLLUP_ID } from "@sdiqt/protocol";
 import { type LogEvent, Operator, type Submitter } from "./operator.ts";
+import { ProveQueue } from "./prove-queue.ts";
+import { processProver } from "./prover-process.ts";
 import { postedDataFeeUqor, postQstr, prepareQstr } from "./qstr.ts";
 import { ProcessRustClaimer } from "./rust-claimer.ts";
 import { liveSubmitter } from "./submit.ts";
@@ -26,6 +28,9 @@ const USAGE = `sdiqt-operator <shadow|history|live|qstr> [options]
   --control <file>       run | pause | drain, default data/operator/control
   --mnemonic-file <f>    live only: the operator account mnemonic
   --cap-qor <n>          live only: daily spend cap, default 50
+  --prove                shadow/live: prove every new chain batch, one at a time
+  --verifier <path>      sdiqt-verify binary, default target/release/sdiqt-verify
+  --work <dir>           inputs and bundles, default data/prove/<rollup>
   --bundle <dir>         qstr: proof bundle directory holding manifest.json
   --prover-id <id>       qstr: prover label, default sdiqt-mac-1
   --post                 qstr: post the commitment to --rollup`;
@@ -43,6 +48,9 @@ const { values, positionals } = parseArgs({
     control: { type: "string", default: "data/operator/control" },
     "mnemonic-file": { type: "string" },
     "cap-qor": { type: "string", default: "50" },
+    prove: { type: "boolean", default: false },
+    verifier: { type: "string", default: "target/release/sdiqt-verify" },
+    work: { type: "string" },
     bundle: { type: "string" },
     "prover-id": { type: "string", default: "sdiqt-mac-1" },
     post: { type: "boolean", default: false },
@@ -107,23 +115,60 @@ if (mode === "qstr") {
 const rust = new ProcessRustClaimer(values.prover);
 let operator: string | undefined;
 let submit: Submitter | undefined;
+let posting: { account: Awaited<ReturnType<typeof liveAccount>>; feePerByte: bigint } | undefined;
 
 if (mode === "live") {
-  const { account, safe } = await liveAccount();
-  submit = liveSubmitter(account.tx, safe);
-  operator = account.address;
+  const live = await liveAccount();
+  submit = liveSubmitter(live.account.tx, live.safe);
+  operator = live.account.address;
+  posting = {
+    account: live,
+    feePerByte: BigInt((await client.rest.getParams()).postedDataFeePerByte ?? 0),
+  };
 }
+
+const archiveDir = join(values.archive, values.rollup);
+const workDir = values.work ?? join("data/prove", values.rollup);
+const proverId = values["prover-id"];
+const proveQueue = values.prove
+  ? new ProveQueue({
+      runner: processProver({
+        prove: values.prover,
+        verify: values.verifier,
+        archiveDir,
+        chainId: CHAIN_ID,
+        logFile: join(workDir, "prove.log"),
+      }),
+      stateFile: join(workDir, "queue.json"),
+      workDir,
+      log,
+      onProven: async (_job, manifest) => {
+        if (!posting) {
+          const { bytes, dataHash } = prepareQstr(manifest, proverId);
+          return { qstr: "would_post", qstr_bytes: bytes.length, qstr_data_hash: dataHash };
+        }
+        const { account, safe } = posting.account;
+        const r = await postQstr(
+          { tx: account.tx, safe, rollupId: values.rollup, feePerByte: posting.feePerByte },
+          manifest,
+          proverId,
+        );
+        return { qstr: "posted", qstr_tx: r.txhash, qstr_sequence: r.sequence };
+      },
+    })
+  : undefined;
 
 const op = new Operator({
   client,
   chainId: CHAIN_ID,
   rollupId: values.rollup,
-  archiveDir: join(values.archive, values.rollup),
+  archiveDir,
   rust,
   mode: mode === "live" ? "live" : "shadow",
   ...(operator ? { operator } : {}),
   ...(submit ? { submit } : {}),
   controlFile: values.control,
+  ...(proveQueue ? { proveQueue } : {}),
   heartbeatTicks: Math.round(Number(values.heartbeat) / Number(values.interval)),
   log,
 });
@@ -151,6 +196,10 @@ while (Date.now() < stopAt) {
     log({ event: "error", alert: true, error: String(err) });
   }
   await new Promise((r) => setTimeout(r, intervalMs));
+}
+if (proveQueue) {
+  log({ event: "stopping", prove_pending: proveQueue.pending() });
+  await proveQueue.stop();
 }
 log({ event: "stop", ...op.stats });
 rust.close();
