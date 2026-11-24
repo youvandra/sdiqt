@@ -21,6 +21,7 @@ bincode = "1"
 libc = "0.2"
 qledger-core = { path = "../qledger-core" }
 sdiqt-statement = { path = "../sdiqt-statement" }
+sdiqt-verify = { path = "../sdiqt-verify" }
 
 [build-dependencies]
 sp1-build = "6.0.1"

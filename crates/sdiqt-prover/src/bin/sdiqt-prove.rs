@@ -1,12 +1,25 @@
-//! SDIQT prover: execute or prove a qledger-v1 batch from the RDK golden
-//! vectors as linked chunks, and report cycles, wall time, peak RSS and
-//! proof size.
+//! SDIQT prover host.
+//!
+//!   sdiqt-prove golden-input [--entries N]          print the RDK golden batch as a batch input
+//!   sdiqt-prove execute <input.json> [--chunk-size N] [--mode full|v0]
+//!   sdiqt-prove prove <input.json> --out <dir> [--chunk-size N] [--mode full|v0]
+//!
+//! `execute` runs every chunk in the zkVM without proving and reports cycles.
+//! `prove` proves every chunk as a compressed STARK (hash-based, no SNARK
+//! wrap), verifies it, links the chunks and writes a proof bundle v1.
 
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 use std::time::Instant;
 
-use clap::Parser;
-use qledger_core::{QledgerEntry, QledgerLedger};
-use sdiqt_statement::{build_chunks, link_chunks, run_chunk, BatchClaim, ChunkOutput, SigMode};
+use clap::{Parser, Subcommand, ValueEnum};
+use qledger_core::QledgerEntry;
+use sdiqt_statement::input::{BatchInput, EntryJson, BATCH_INPUT_FORMAT, BATCH_INPUT_VERSION};
+use sdiqt_statement::{link_chunks, run_chunk, BatchClaim, ChunkInput, ChunkOutput, SigMode};
+use sdiqt_verify::bundle::{
+    chunk_file, proof_root, sha256, ChunkEntry, Manifest, BUNDLE_FORMAT, BUNDLE_VERSION,
+};
+use sdiqt_verify::{decode_public_values, sig_mode_name};
 use serde_json::Value;
 use sp1_sdk::{
     blocking::{ProveRequest, Prover, ProverClient},
@@ -14,206 +27,282 @@ use sp1_sdk::{
 };
 
 const ELF: Elf = include_elf!("sdiqt-guest");
+const SP1_VERSION: &str = "6.10.0";
+const GOLDEN: &str = include_str!("../../../../vectors/qledger-v328.json");
 
-#[derive(Parser, Debug)]
-struct Args {
-    #[arg(long)]
-    execute: bool,
-    #[arg(long)]
-    prove: bool,
-    /// Core STARK instead of the recursively compressed STARK (both are
-    /// hash-based; no SNARK wrap is ever used).
-    #[arg(long)]
-    core: bool,
-    /// Signature mode: full (ML-DSA-44 in the proof) or v0 (public bits).
-    #[arg(long, default_value = "full")]
-    mode: String,
-    /// Use only the first N golden entries.
-    #[arg(long)]
-    entries: Option<usize>,
+#[derive(Parser)]
+#[command(
+    name = "sdiqt-prove",
+    about = "Execute or prove qledger-v1 batches as linked SP1 chunk proofs"
+)]
+struct Cli {
+    #[command(subcommand)]
+    cmd: Cmd,
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum Mode {
+    /// ML-DSA-44 verified inside the proof.
+    Full,
+    /// One public validity bit per transaction.
+    V0,
+}
+
+impl From<Mode> for SigMode {
+    fn from(m: Mode) -> Self {
+        match m {
+            Mode::Full => SigMode::Full,
+            Mode::V0 => SigMode::V0,
+        }
+    }
+}
+
+#[derive(clap::Args)]
+struct ChunkArgs {
     /// Most entries per chunk proof.
-    #[arg(long, default_value = "4")]
+    #[arg(long, default_value_t = 4)]
     chunk_size: usize,
-    /// Write each compressed chunk proof, its public values and the program's
-    /// verifying-key hash to this directory (verifier input format).
-    #[arg(long)]
-    out: Option<std::path::PathBuf>,
+    #[arg(long, value_enum, default_value_t = Mode::Full)]
+    mode: Mode,
+}
+
+#[derive(Subcommand)]
+enum Cmd {
+    /// Print the RDK golden batch (vectors/qledger-v328.json) as a batch input.
+    GoldenInput {
+        /// Keep only the first N entries.
+        #[arg(long)]
+        entries: Option<usize>,
+    },
+    /// Run every chunk in the zkVM without proving; report cycles.
+    Execute {
+        input: PathBuf,
+        #[command(flatten)]
+        chunks: ChunkArgs,
+    },
+    /// Prove every chunk and write a proof bundle.
+    Prove {
+        input: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+        #[command(flatten)]
+        chunks: ChunkArgs,
+    },
+}
+
+fn main() -> ExitCode {
+    sp1_sdk::utils::setup_logger();
+    let result = match Cli::parse().cmd {
+        Cmd::GoldenInput { entries } => golden_input(entries),
+        Cmd::Execute { input, chunks } => execute(&input, &chunks),
+        Cmd::Prove { input, out, chunks } => prove(&input, &out, &chunks),
+    };
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("error: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+type Result<T> = std::result::Result<T, String>;
+
+fn golden_input(limit: Option<usize>) -> Result<()> {
+    let v: Value = serde_json::from_str(GOLDEN).map_err(|e| e.to_string())?;
+    let q = &v["qledger"];
+    let field = |val: &Value, name: &str| -> Result<String> {
+        val[name]
+            .as_str()
+            .map(str::to_string)
+            .ok_or_else(|| format!("golden vectors: missing {name}"))
+    };
+    let mut entries: Vec<EntryJson> = q["entries"]
+        .as_array()
+        .ok_or("golden vectors: missing entries")?
+        .iter()
+        .map(|e| {
+            Ok(EntryJson {
+                height: e["height"]
+                    .as_u64()
+                    .ok_or("golden vectors: bad height")?
+                    .to_string(),
+                poster: field(e, "poster")?,
+                payload: field(e, "payload")?,
+            })
+        })
+        .collect::<Result<_>>()?;
+    if let Some(n) = limit {
+        entries.truncate(n);
+    }
+    let b = &q["batch"];
+    let input = BatchInput {
+        format: BATCH_INPUT_FORMAT.into(),
+        version: BATCH_INPUT_VERSION.into(),
+        chain_id: field(q, "chainId")?,
+        rollup_id: field(q, "rollupId")?,
+        batch_index: "0".into(),
+        inbox_from: b["inboxStart"]
+            .as_u64()
+            .ok_or("golden vectors: bad inboxStart")?
+            .to_string(),
+        acc_from: field(b, "accFrom")?,
+        parent_accounts: Vec::new(),
+        entries,
+    };
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&input).map_err(|e| e.to_string())?
+    );
+    Ok(())
+}
+
+struct Planned {
+    input: BatchInput,
+    parent_root: [u8; 32],
+    chunks: Vec<ChunkInput>,
+    claim: BatchClaim,
+}
+
+fn plan(path: &Path, args: &ChunkArgs) -> Result<Planned> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let input: BatchInput =
+        serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    let (parent, chunks) = input
+        .chunk_inputs(args.chunk_size, args.mode.into())
+        .map_err(|e| e.to_string())?;
+    let outputs: Vec<ChunkOutput> = chunks.iter().map(run_chunk).collect();
+    let claim = link_chunks(&parent.root(), &outputs)
+        .map_err(|e| format!("host chunks do not link: {e:?}"))?;
+    let entries: Vec<QledgerEntry> = input.entries().map_err(|e| e.to_string())?;
+    println!(
+        "batch {} entries={} chunks={} chunk_size={} mode={} state_root={}",
+        input.batch_index,
+        entries.len(),
+        chunks.len(),
+        args.chunk_size,
+        sig_mode_name(claim.mode),
+        hex::encode(claim.state_root)
+    );
+    Ok(Planned {
+        parent_root: parent.root(),
+        input,
+        chunks,
+        claim,
+    })
+}
+
+fn execute(path: &Path, args: &ChunkArgs) -> Result<()> {
+    let p = plan(path, args)?;
+    let client = ProverClient::from_env();
+    let mut total = 0u64;
+    for (i, chunk) in p.chunks.iter().enumerate() {
+        let mut stdin = SP1Stdin::new();
+        stdin.write(chunk);
+        let (mut out, report) = client
+            .execute(ELF, stdin)
+            .run()
+            .map_err(|e| e.to_string())?;
+        if out.read::<ChunkOutput>() != run_chunk(chunk) {
+            return Err(format!("chunk {i}: guest output differs from host output"));
+        }
+        let cycles = report.total_instruction_count();
+        total += cycles;
+        println!(
+            "chunk {i}: entries={} witnesses={} cycles={cycles}",
+            chunk.entries.len(),
+            chunk.witnesses.len()
+        );
+    }
+    println!("cycles total: {total}");
+    Ok(())
+}
+
+fn prove(path: &Path, out: &Path, args: &ChunkArgs) -> Result<()> {
+    let p = plan(path, args)?;
+    std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
+    let client = ProverClient::from_env();
+    let pk = client.setup(ELF).map_err(|e| e.to_string())?;
+    let vkey_hash =
+        bincode::serialize(&pk.verifying_key().hash_koalabear()).map_err(|e| e.to_string())?;
+
+    let started = Instant::now();
+    let mut entries = Vec::new();
+    let mut hashes = Vec::new();
+    let mut outputs = Vec::new();
+    for (i, chunk) in p.chunks.iter().enumerate() {
+        let mut stdin = SP1Stdin::new();
+        stdin.write(chunk);
+        let t = Instant::now();
+        let proof = client
+            .prove(&pk, stdin)
+            .compressed()
+            .run()
+            .map_err(|e| e.to_string())?;
+        let prove_time = t.elapsed();
+        let t = Instant::now();
+        client
+            .verify(&proof, pk.verifying_key(), None)
+            .map_err(|e| format!("chunk {i}: own proof does not verify: {e}"))?;
+        let bytes = bincode::serialize(&proof.proof).map_err(|e| e.to_string())?;
+        let pv = proof.public_values.to_vec();
+        println!(
+            "chunk {i}: entries={} prove {prove_time:.1?} verify {:.1?} proof_bytes {} peak_rss_mb {:.0}",
+            chunk.entries.len(),
+            t.elapsed(),
+            bytes.len(),
+            peak_rss_mb()
+        );
+        let file = chunk_file(i);
+        std::fs::write(out.join(&file), &bytes).map_err(|e| format!("{file}: {e}"))?;
+        let hash = sha256(&bytes);
+        entries.push(ChunkEntry {
+            index: i.to_string(),
+            file,
+            proof_sha256: hex::encode(hash),
+            public_values: hex::encode(&pv),
+        });
+        hashes.push(hash);
+        outputs.push(decode_public_values(&pv)?);
+    }
+
+    let linked = link_chunks(&p.parent_root, &outputs)
+        .map_err(|e| format!("proved chunks do not link: {e:?}"))?;
+    if linked != p.claim {
+        return Err("proved claim differs from the host claim".into());
+    }
+    let c = &p.claim;
+    let manifest = Manifest {
+        format: BUNDLE_FORMAT.into(),
+        version: BUNDLE_VERSION.into(),
+        chain_id: c.chain_id.clone(),
+        rollup_id: c.rollup_id.clone(),
+        batch_index: p.input.batch_index.clone(),
+        inbox_from: c.inbox_from.to_string(),
+        inbox_end: c.inbox_end.to_string(),
+        parent_root: hex::encode(c.parent_root),
+        state_root: hex::encode(c.state_root),
+        withdrawals_root: hex::encode(&c.withdrawals_root),
+        data_hash: hex::encode(c.data_hash),
+        sig_mode: sig_mode_name(c.mode).into(),
+        sp1_version: SP1_VERSION.into(),
+        program_vkey_hash: hex::encode(&vkey_hash),
+        proof_root: hex::encode(proof_root(&hashes)),
+        chunks: entries,
+    };
+    manifest.write(out).map_err(|e| e.to_string())?;
+    println!(
+        "all chunks proved in {:.1?}; bundle {} manifest sha256 {}",
+        started.elapsed(),
+        out.display(),
+        hex::encode(manifest.hash())
+    );
+    Ok(())
 }
 
 fn peak_rss_mb() -> f64 {
+    // SAFETY: getrusage only writes into the zeroed struct we pass.
     let mut ru: libc::rusage = unsafe { std::mem::zeroed() };
     unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut ru) };
     ru.ru_maxrss as f64 / 1024.0 / 1024.0 // bytes on macOS
-}
-
-fn hx(b: &[u8]) -> String {
-    hex::encode(b)
-}
-
-fn main() {
-    sp1_sdk::utils::setup_logger();
-    let args = Args::parse();
-    let v: Value =
-        serde_json::from_str(include_str!("../../../../vectors/qledger-v328.json")).unwrap();
-    let q = &v["qledger"];
-    let mut entries: Vec<QledgerEntry> = q["entries"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|e| QledgerEntry {
-            height: e["height"].as_u64().unwrap(),
-            poster: e["poster"].as_str().unwrap().to_string(),
-            payload: hex::decode(e["payload"].as_str().unwrap()).unwrap(),
-        })
-        .collect();
-    let whole = args.entries.is_none();
-    if let Some(n) = args.entries {
-        entries.truncate(n);
-    }
-    let mode = if args.mode == "v0" {
-        SigMode::V0
-    } else {
-        SigMode::Full
-    };
-    let b = &q["batch"];
-    let (chain, rollup) = (
-        q["chainId"].as_str().unwrap(),
-        q["rollupId"].as_str().unwrap(),
-    );
-    let parent = QledgerLedger::new();
-    let inputs = build_chunks(
-        chain,
-        rollup,
-        &parent,
-        b["inboxStart"].as_u64().unwrap(),
-        hex::decode(b["accFrom"].as_str().unwrap()).unwrap(),
-        &entries,
-        args.chunk_size,
-        mode,
-    );
-    let want: Vec<ChunkOutput> = inputs.iter().map(run_chunk).collect();
-    let claim = link_chunks(&parent.root(), &want).expect("host chunks link");
-    println!(
-        "entries={} chunks={} chunk_size={} mode={:?} state_root={}",
-        entries.len(),
-        inputs.len(),
-        args.chunk_size,
-        mode,
-        hx(&claim.state_root)
-    );
-    if whole {
-        check_against_chain(&claim, b);
-    }
-
-    let client = ProverClient::from_env();
-    if args.execute {
-        let mut total = 0u64;
-        for (i, input) in inputs.iter().enumerate() {
-            let mut stdin = SP1Stdin::new();
-            stdin.write(input);
-            let (mut out, report) = client.execute(ELF, stdin).run().unwrap();
-            let got: ChunkOutput = out.read();
-            assert_eq!(got, want[i], "guest output == host output");
-            let c = report.total_instruction_count();
-            total += c;
-            println!(
-                "chunk {i}: entries={} witnesses={} cycles={c}",
-                input.entries.len(),
-                input.witnesses.len()
-            );
-        }
-        println!("cycles total: {total}");
-    } else if args.prove {
-        let pk = client.setup(ELF).expect("setup");
-        if let Some(dir) = &args.out {
-            std::fs::create_dir_all(dir).expect("create out dir");
-            let vkey_hash = bincode::serialize(&pk.verifying_key().hash_koalabear()).unwrap();
-            std::fs::write(dir.join("vkey-hash.bin"), vkey_hash).expect("write vkey hash");
-        }
-        let started = Instant::now();
-        let mut outs = Vec::new();
-        let mut proofs = Vec::new();
-        for (i, input) in inputs.iter().enumerate() {
-            let mut stdin = SP1Stdin::new();
-            stdin.write(input);
-            let t = Instant::now();
-            let req = client.prove(&pk, stdin);
-            let proof = if args.core {
-                req.run()
-            } else {
-                req.compressed().run()
-            }
-            .expect("prove");
-            let pt = t.elapsed();
-            let size = bincode::serialize(&proof).unwrap().len();
-            let t = Instant::now();
-            client
-                .verify(&proof, pk.verifying_key(), None)
-                .expect("verify");
-            println!(
-                "chunk {i}: entries={} prove {:.1?} verify {:.1?} proof_bytes {size} peak_rss_mb {:.0}",
-                input.entries.len(),
-                pt,
-                t.elapsed(),
-                peak_rss_mb()
-            );
-            if let (Some(dir), false) = (&args.out, args.core) {
-                let bytes = bincode::serialize(&proof.proof).unwrap();
-                std::fs::write(dir.join(format!("chunk-{i}.proof.bin")), bytes)
-                    .expect("write proof");
-                std::fs::write(
-                    dir.join(format!("chunk-{i}.pv.bin")),
-                    proof.public_values.to_vec(),
-                )
-                .expect("write public values");
-            }
-            let mut pv = proof.public_values.clone();
-            outs.push(pv.read::<ChunkOutput>());
-            proofs.push(proof);
-        }
-        println!("all chunks proved in {:.1?}", started.elapsed());
-
-        // Verifier side: every proof checks, then the public outputs link.
-        let got = link_chunks(&parent.root(), &outs).expect("proved chunks link");
-        assert_eq!(got, claim);
-        if whole {
-            check_against_chain(&got, b);
-        }
-        println!("linked claim == host claim");
-
-        // Tamper: one flipped public-value byte fails the proof check.
-        let mut bad = proofs[0].clone();
-        let mut pv = bad.public_values.to_vec();
-        let last = pv.len() - 1;
-        pv[last] ^= 1;
-        bad.public_values = sp1_sdk::SP1PublicValues::from(&pv);
-        println!(
-            "tampered public values rejected: {}",
-            client.verify(&bad, pk.verifying_key(), None).is_err()
-        );
-        if outs.len() > 1 {
-            let mut swapped = outs.clone();
-            swapped.swap(0, 1);
-            println!(
-                "reordered chunks rejected: {}",
-                link_chunks(&parent.root(), &swapped).is_err()
-            );
-            println!(
-                "dropped chunk rejected: {}",
-                link_chunks(&parent.root(), &outs[1..]).is_err()
-            );
-        }
-    } else {
-        eprintln!("use --execute or --prove");
-    }
-}
-
-fn check_against_chain(c: &BatchClaim, b: &Value) {
-    assert_eq!(hx(&c.state_root), b["stateRoot"].as_str().unwrap());
-    assert_eq!(
-        hx(&c.withdrawals_root),
-        b["withdrawalsRoot"].as_str().unwrap()
-    );
-    assert_eq!(hx(&c.data_hash), b["dataHash"].as_str().unwrap());
-    println!("claim == chain batch (stateRoot, withdrawalsRoot, dataHash)");
 }
