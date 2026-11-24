@@ -9,7 +9,6 @@
 
 import {
   base64ToBytes,
-  bytesToBase64,
   bytesToHex,
   encodeQledgerDeposit,
   hexToBytes,
@@ -37,7 +36,7 @@ export interface InboxRecord {
   poster: string;
   /** SHA-256 of `payload`, hex. */
   data_hash: string;
-  /** The entry bytes, base64. */
+  /** The entry bytes, lowercase hex. */
   payload: string;
 }
 
@@ -136,7 +135,7 @@ export function postRecords(rollupId: string, txs: TxResponse[]): InboxRecord[] 
         txhash,
         poster,
         data_hash: dataHash,
-        payload: String(msg.data),
+        payload: b64Hex(msg.data),
       });
     }
   }
@@ -164,7 +163,7 @@ export function depositRecords(rollupId: string, txs: TxResponse[]): InboxRecord
         txhash,
         poster: QLEDGER_DEPOSIT_POSTER_PREFIX + need(a, "depositor", where),
         data_hash: bytesToHex(postedDataHash(payload)),
-        payload: bytesToBase64(payload),
+        payload: bytesToHex(payload),
       });
     }
   }

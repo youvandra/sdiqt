@@ -11,7 +11,7 @@ pnpm --filter @sdiqt/archiver archive -- --rollup sdiqt-1 --out data/archive --w
 Output in `<out>/<rollup>/`:
 
 - `inbox.jsonl`: one line per inbox entry (`post` or `deposit`), sorted by
-  sequence, with the height, tx hash, poster, `data_hash` and payload (base64).
+  sequence, with the height, tx hash, poster, `data_hash` and payload (lowercase hex, as in every SDIQT format).
 - `batches.jsonl`: one line per `MsgSubmitBatch`, sorted by height, with roots
   as hex. A rolled-back batch and its replacement share a `batch_index` and
   both stay in the file.

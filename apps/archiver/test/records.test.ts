@@ -113,7 +113,7 @@ describe("records from tx responses", () => {
       poster: POSTER,
       data_hash: dataHash,
     });
-    expect(p?.payload).toBe(bytesToBase64(payload));
+    expect(p?.payload).toBe("01020304");
   });
 
   it("refuses a post whose payload does not hash to the event's data_hash", () => {
@@ -131,7 +131,7 @@ describe("records from tx responses", () => {
     const [d] = depositRecords(ROLLUP, [depositTx]);
     const encoded = encodeQledgerDeposit(account, 5000n);
     expect(d).toMatchObject({ kind: "deposit", sequence: "1", poster: "deposit:qor1alice" });
-    expect(d?.payload).toBe(bytesToBase64(encoded));
+    expect(d?.payload).toBe(bytesToHex(encoded));
     expect(d?.data_hash).toBe(bytesToHex(postedDataHash(encoded)));
   });
 
