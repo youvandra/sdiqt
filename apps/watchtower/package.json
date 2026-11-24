@@ -1,0 +1,32 @@
+{
+  "name": "@sdiqt/watchtower",
+  "version": "0.1.0",
+  "description": "SDIQT watchtower: re-executes every batch, checks its STARK bundle and QSTR, and issues signed settlement receipts",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "sdiqt-watchtower": "./src/cli.ts"
+  },
+  "scripts": {
+    "watchtower": "node src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0",
+    "@qorechain/rdk": "0.9.0",
+    "@sdiqt/archiver": "workspace:*",
+    "@sdiqt/chain": "workspace:*",
+    "@sdiqt/operator": "workspace:*",
+    "@sdiqt/protocol": "workspace:*",
+    "@sdiqt/verify": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "vitest": "5.1.1"
+  }
+}
