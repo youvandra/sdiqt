@@ -25,7 +25,9 @@ const ts = [
   `// ${HEADER}`,
   "",
   ...items.map(({ name, value, integer }) =>
-    integer ? `export const ${name} = ${value}n;` : `export const ${name} = ${JSON.stringify(value)};`,
+    integer
+      ? `export const ${name} = ${value}n;`
+      : `export const ${name} = ${JSON.stringify(value)};`,
   ),
   "",
 ].join("\n");
