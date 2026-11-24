@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 import { connectAccount, createChainClient, parseGasPrice, SafeTx, SpendCap } from "@sdiqt/chain";
 import { BundleManifestV1, CHAIN_GAS_PRICE, CHAIN_ID, ROLLUP_ID } from "@sdiqt/protocol";
@@ -28,6 +29,8 @@ const USAGE = `sdiqt-operator <shadow|history|live|qstr> [options]
   --control <file>       run | pause | drain, default data/operator/control
   --mnemonic-file <f>    live only: the operator account mnemonic
   --cap-qor <n>          live only: daily spend cap, default 50
+  --evil-root            live, gate G3 only: send the next batch with a wrong state
+                         root, once (needs SDIQT_EVIL_ROOT=yes and a typed confirmation)
   --prove                shadow/live: prove every new chain batch, one at a time
   --verifier <path>      sdiqt-verify binary, default target/release/sdiqt-verify
   --work <dir>           inputs and bundles, default data/prove/<rollup>
@@ -49,6 +52,7 @@ const { values, positionals } = parseArgs({
     "mnemonic-file": { type: "string" },
     "cap-qor": { type: "string", default: "50" },
     prove: { type: "boolean", default: false },
+    "evil-root": { type: "boolean", default: false },
     verifier: { type: "string", default: "target/release/sdiqt-verify" },
     work: { type: "string" },
     bundle: { type: "string" },
@@ -127,6 +131,20 @@ if (mode === "live") {
   };
 }
 
+if (values["evil-root"]) {
+  if (process.env.SDIQT_EVIL_ROOT !== "yes")
+    throw new Error("--evil-root needs SDIQT_EVIL_ROOT=yes");
+  if (!process.stdin.isTTY) throw new Error("--evil-root needs a terminal for the confirmation");
+  const phrase = `slash the ${values.rollup} bond`;
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const typed = await rl.question(
+    `The next batch of ${values.rollup} will carry a wrong state root and its submitter bond will be slashed.\nType "${phrase}" to arm: `,
+  );
+  rl.close();
+  if (typed.trim() !== phrase) throw new Error("confirmation did not match; not armed");
+  log({ event: "evil_armed", alert: true });
+}
+
 const archiveDir = join(values.archive, values.rollup);
 const workDir = values.work ?? join("data/prove", values.rollup);
 const proverId = values["prover-id"];
@@ -168,6 +186,8 @@ const op = new Operator({
   ...(operator ? { operator } : {}),
   ...(submit ? { submit } : {}),
   controlFile: values.control,
+  evilRoot: values["evil-root"],
+  evilRollup: ROLLUP_ID,
   ...(proveQueue ? { proveQueue } : {}),
   heartbeatTicks: Math.round(Number(values.heartbeat) / Number(values.interval)),
   log,

@@ -37,6 +37,13 @@ export interface OperatorOptions {
   submit?: Submitter;
   /** A file holding `run`, `pause` or `drain`; missing means `run`. */
   controlFile?: string;
+  /**
+   * Gate G3 only: the next batch goes out with its state root's last byte
+   * flipped, once. The CLI arms it behind SDIQT_EVIL_ROOT=yes and a typed
+   * confirmation; the operator refuses it on any rollup but `evilRollup`.
+   */
+  evilRoot?: boolean;
+  evilRollup?: string;
   /** When set, every chain batch that lands after start is queued for proving. */
   proveQueue?: ProveQueue;
   /** Log a `heartbeat` every this many ticks (0 = never), so idle and dead differ. */
@@ -53,6 +60,12 @@ const rootsOf = (b: BatchRecord): BatchRoots => ({
   dataHash: b.data_hash,
 });
 
+/** `roots` with the state root's last byte flipped, the G3 staged fraud. */
+export function evilRoots(roots: BatchRoots): BatchRoots {
+  const last = Number.parseInt(roots.stateRoot.slice(-2), 16) ^ 0xff;
+  return { ...roots, stateRoot: roots.stateRoot.slice(0, -2) + last.toString(16).padStart(2, "0") };
+}
+
 /** Fields where two sets of roots differ. */
 export function rootDiff(a: BatchRoots, b: BatchRoots): string[] {
   return (Object.keys(a) as Array<keyof BatchRoots>).filter((k) => a[k] !== b[k]);
@@ -65,6 +78,7 @@ export class Operator {
   private readonly replay: InboxReplay;
   private seen: Set<string> | undefined;
   private ticks = 0;
+  private evilArmed: boolean;
   /** Shadow plans by inbox start, matched when the chain's batch for that start lands. */
   private readonly wouldSubmit = new Map<string, BatchRoots>();
   readonly stats = {
@@ -80,6 +94,13 @@ export class Operator {
   constructor(options: OperatorOptions) {
     this.o = options;
     this.replay = new InboxReplay(options.chainId, options.rollupId);
+    this.evilArmed = options.evilRoot === true;
+    if (this.evilArmed) {
+      if (options.mode !== "live") throw new Error("--evil-root only runs in live mode");
+      if (!options.evilRollup || options.rollupId !== options.evilRollup) {
+        throw new Error(`--evil-root only runs on ${options.evilRollup ?? "our own rollup"}`);
+      }
+    }
   }
 
   private async control(): Promise<Control> {
@@ -226,7 +247,44 @@ export class Operator {
       records: this.replay.records(consumed, end),
       entries: this.replay.range(consumed, end),
     });
-    await this.submitPlan(plan, plan.roots);
+    if (this.evilArmed) await this.submitEvil(plan);
+    else await this.submitPlan(plan, plan.roots);
+  }
+
+  /**
+   * Send one batch with a wrong state root on purpose (gate G3). The honest
+   * plan must pass the dual self-check and the evil roots must fail it, so the
+   * mismatch is known before anything is signed. Disarms after one attempt.
+   */
+  async submitEvil(plan: BatchPlan): Promise<boolean> {
+    const { chainId, rollupId, log } = this.o;
+    this.evilArmed = false;
+    const evil = evilRoots(plan.roots);
+    const [honest, wrong] = await Promise.all([
+      dualSelfCheck({ chainId, rollupId, plan, submit: plan.roots, rust: this.o.rust }),
+      dualSelfCheck({ chainId, rollupId, plan, submit: evil, rust: this.o.rust }),
+    ]);
+    const base = {
+      batch_index: plan.batchIndex,
+      inbox: `${evil.inboxFrom}..${evil.inboxEnd}`,
+      honest_state_root: plan.roots.stateRoot,
+      evil_state_root: evil.stateRoot,
+    };
+    if (!honest.ok || wrong.ok) {
+      log({
+        event: "evil_refused",
+        alert: true,
+        ...base,
+        honest_problems: honest.problems,
+        evil_detected: !wrong.ok,
+      });
+      return false;
+    }
+    if (!this.o.submit) throw new Error("live mode needs a submitter");
+    const { txhash } = await this.o.submit(plan, evil);
+    this.stats.submitted += 1;
+    log({ event: "evil_submitted", alert: true, ...base, txhash, evil_problems: wrong.problems });
+    return true;
   }
 
   /** Self-check `roots` for `plan` and, in live mode, submit them. */
