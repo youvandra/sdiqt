@@ -1,6 +1,7 @@
 //! SDIQT prover host.
 //!
 //!   sdiqt-prove golden-input [--entries N]          print the RDK golden batch as a batch input
+//!   sdiqt-prove from-archive <dir> (--batch-tx H | --all) [--out <dir>]
 //!   sdiqt-prove execute <input.json> [--chunk-size N] [--mode full|v0]
 //!   sdiqt-prove prove <input.json> --out <dir> [--chunk-size N] [--mode full|v0]
 //!
@@ -14,6 +15,10 @@ use std::time::Instant;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use qledger_core::QledgerEntry;
+use sdiqt_statement::archive::{
+    batch_input_from_archive, claim_mismatches, ArchiveBatch, ArchiveEntry,
+};
+use sdiqt_statement::constants::CHAIN_ID;
 use sdiqt_statement::input::{BatchInput, EntryJson, BATCH_INPUT_FORMAT, BATCH_INPUT_VERSION};
 use sdiqt_statement::{link_chunks, run_chunk, BatchClaim, ChunkInput, ChunkOutput, SigMode};
 use sdiqt_verify::bundle::{
@@ -74,6 +79,25 @@ enum Cmd {
         #[arg(long)]
         entries: Option<usize>,
     },
+    /// Build batch inputs from an archive (`apps/archiver`) and check each
+    /// host claim against the roots the chain recorded.
+    FromArchive {
+        /// The archive directory of one rollup (its name is the rollup id).
+        dir: PathBuf,
+        /// Build the batch submitted in this transaction.
+        #[arg(long, conflicts_with = "all")]
+        batch_tx: Option<String>,
+        /// Build every archived batch.
+        #[arg(long)]
+        all: bool,
+        /// Write `batch-<index>-<tx>.json` inputs here.
+        #[arg(long)]
+        out: Option<PathBuf>,
+        #[arg(long, default_value = CHAIN_ID)]
+        chain_id: String,
+        #[command(flatten)]
+        chunks: ChunkArgs,
+    },
     /// Run every chunk in the zkVM without proving; report cycles.
     Execute {
         input: PathBuf,
@@ -94,6 +118,21 @@ fn main() -> ExitCode {
     sp1_sdk::utils::setup_logger();
     let result = match Cli::parse().cmd {
         Cmd::GoldenInput { entries } => golden_input(entries),
+        Cmd::FromArchive {
+            dir,
+            batch_tx,
+            all,
+            out,
+            chain_id,
+            chunks,
+        } => from_archive(
+            &dir,
+            batch_tx.as_deref(),
+            all,
+            out.as_deref(),
+            &chain_id,
+            &chunks,
+        ),
         Cmd::Execute { input, chunks } => execute(&input, &chunks),
         Cmd::Prove { input, out, chunks } => prove(&input, &out, &chunks),
     };
@@ -154,6 +193,85 @@ fn golden_input(limit: Option<usize>) -> Result<()> {
         "{}",
         serde_json::to_string_pretty(&input).map_err(|e| e.to_string())?
     );
+    Ok(())
+}
+
+fn read_jsonl<T: serde::de::DeserializeOwned>(path: &Path) -> Result<Vec<T>> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    text.lines()
+        .filter(|l| !l.trim().is_empty())
+        .enumerate()
+        .map(|(i, l)| {
+            serde_json::from_str(l).map_err(|e| format!("{}:{}: {e}", path.display(), i + 1))
+        })
+        .collect()
+}
+
+fn from_archive(
+    dir: &Path,
+    batch_tx: Option<&str>,
+    all: bool,
+    out: Option<&Path>,
+    chain_id: &str,
+    args: &ChunkArgs,
+) -> Result<()> {
+    let rollup_id = dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or("archive directory has no rollup name")?;
+    let entries: Vec<ArchiveEntry> = read_jsonl(&dir.join("inbox.jsonl"))?;
+    let batches: Vec<ArchiveBatch> = read_jsonl(&dir.join("batches.jsonl"))?;
+    let chosen: Vec<&ArchiveBatch> = match (batch_tx, all) {
+        (Some(h), _) => {
+            let h = h.to_ascii_uppercase();
+            let b = batches.iter().filter(|b| b.txhash == h).collect::<Vec<_>>();
+            if b.is_empty() {
+                return Err(format!("no archived batch in transaction {h}"));
+            }
+            b
+        }
+        (None, true) => batches.iter().collect(),
+        (None, false) => return Err("pass --batch-tx <hash> or --all".into()),
+    };
+    if let Some(o) = out {
+        std::fs::create_dir_all(o).map_err(|e| format!("{}: {e}", o.display()))?;
+    }
+    let mut matched = 0;
+    for b in &chosen {
+        let input = batch_input_from_archive(chain_id, rollup_id, &entries, b)
+            .map_err(|e| e.to_string())?;
+        let (parent, chunks) = input
+            .chunk_inputs(args.chunk_size, args.mode.into())
+            .map_err(|e| e.to_string())?;
+        let outputs: Vec<ChunkOutput> = chunks.iter().map(run_chunk).collect();
+        let claim = link_chunks(&parent.root(), &outputs)
+            .map_err(|e| format!("host chunks do not link: {e:?}"))?;
+        let diff = claim_mismatches(&claim, b);
+        let verdict = if diff.is_empty() { "MATCH" } else { "DIFFERS" };
+        println!(
+            "batch {} tx {} height {} inbox {}..{} entries={} chunks={} by {}: {verdict}",
+            b.batch_index,
+            b.txhash,
+            b.height,
+            b.inbox_start,
+            b.inbox_end,
+            input.entries.len(),
+            chunks.len(),
+            b.sequencer
+        );
+        for d in &diff {
+            println!("  {d}");
+        }
+        if diff.is_empty() {
+            matched += 1;
+        }
+        if let Some(o) = out {
+            let file = o.join(format!("batch-{}-{}.json", b.batch_index, &b.txhash[..12]));
+            let text = serde_json::to_string_pretty(&input).map_err(|e| e.to_string())?;
+            std::fs::write(&file, text + "\n").map_err(|e| format!("{}: {e}", file.display()))?;
+        }
+    }
+    println!("{matched} of {} batches match the chain", chosen.len());
     Ok(())
 }
 
