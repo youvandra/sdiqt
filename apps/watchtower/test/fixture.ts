@@ -65,6 +65,8 @@ export function setup(
     /** Chain status per batch index; "missing" drops the record. Default finalized. */
     status?: (index: string) => string | undefined;
     challenger?: Challenger;
+    /** Reuse an existing tower database (a restart). */
+    db?: string;
   } = {},
 ) {
   const dir = mkdtempSync(join(tmpdir(), "sdiqt-tower-"));
@@ -129,7 +131,8 @@ export function setup(
     challengeWindowSec: async () => 3600,
   };
   const keys = keygen(new Uint8Array(32).fill(5));
-  const store = new TowerStore(join(dir, "tower.sqlite"));
+  const dbFile = opts.db ?? join(dir, "tower.sqlite");
+  const store = new TowerStore(dbFile);
   const events: Array<Record<string, unknown>> = [];
   const tower = new Tower({
     chainId: CHAIN,
@@ -154,5 +157,5 @@ export function setup(
     now: opts.now ?? (() => new Date(1_794_464_647_000 + 600_000)),
     ...(opts.challenger ? { challenger: opts.challenger } : {}),
   });
-  return { tower, store, events, keys, setBatches };
+  return { tower, store, events, keys, setBatches, dbFile };
 }

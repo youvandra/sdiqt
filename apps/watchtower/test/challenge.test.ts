@@ -4,7 +4,7 @@ import { type BatchRecord, readArchive } from "@sdiqt/archiver";
 import { parseGasPrice, SafeTx, SpendCap } from "@sdiqt/chain";
 import { InboxReplay } from "@sdiqt/operator";
 import { ApiBatchDetailV1, CHAIN_GAS_PRICE } from "@sdiqt/protocol";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   batchDetail,
   type Challenger,
@@ -68,17 +68,12 @@ describe("challenge decision", () => {
   });
 
   it("refuses when the local check cannot decide the proof", async () => {
-    const honest = byTx("C3B4F90C");
-    // A proof built for batch 5's inputs, claimed against batch 6's range.
+    // A proof built for batch 5's inputs, claimed against batch 6's inbox range.
     const b6 = { ...byTx("4D19704D"), state_root: flip(byTx("4D19704D").state_root) };
-    const d = decideChallenge({
-      chainId: CHAIN,
-      rollupId: ROLLUP,
-      batch: b6,
-      plan: (await planFor(honest)).plan,
-    });
+    const plan = (await planFor(byTx("C3B4F90C"))).plan;
+    const d = decideChallenge({ chainId: CHAIN, rollupId: ROLLUP, batch: b6, plan });
     expect(d.fraud).toBe(false);
-    expect(d.reason).toMatch(/cannot decide|honest/);
+    expect(d.reason).toMatch(/^local check cannot decide: /);
   });
 });
 
@@ -204,6 +199,52 @@ describe("watchtower challenge path", () => {
     const bad = forged().find((x) => x.txhash.startsWith("C3B4F90C")) as BatchRecord;
     expect(store.challenge(`${bad.txhash}:0`)).toMatchObject({ status: "watch", txhash: null });
     expect(events.some((e) => e.event === "would_challenge")).toBe(true);
+  });
+
+  it("sends a recorded watch once the tower restarts with a challenger", async () => {
+    const t = world();
+    await t.tower.tick();
+    const bad = forged().find((x) => x.txhash.startsWith("C3B4F90C")) as BatchRecord;
+    expect(t.store.challenge(`${bad.txhash}:0`)?.status).toBe("watch");
+
+    // Same database, now with --challenge.
+    const sent: string[] = [];
+    const again = setup({
+      status: (i) => (i === "5" || i === "6" ? "submitted" : undefined),
+      challenger: async (i) => {
+        sent.push(i);
+        return { txhash: "AB".repeat(32) };
+      },
+      db: t.dbFile,
+    });
+    again.setBatches(forged());
+    await again.tower.tick();
+    expect(sent).toEqual(["5"]);
+    expect(again.store.challenge(`${bad.txhash}:0`)).toMatchObject({ status: "sent", attempts: 1 });
+  });
+
+  it("records a proof that cannot be built and finishes the tick", async () => {
+    const { tower, store, events } = world();
+    const real = tower.tick.bind(tower);
+    // Break the proof builder for this tick only.
+    const ops = await import("@sdiqt/operator");
+    const spy = vi.spyOn(ops, "fraudProofFor").mockImplementation(() => {
+      throw new Error("witness missing");
+    });
+    try {
+      await real();
+    } finally {
+      spy.mockRestore();
+    }
+    const bad = forged().find((x) => x.txhash.startsWith("C3B4F90C")) as BatchRecord;
+    expect(store.challenge(`${bad.txhash}:0`)).toMatchObject({ status: "refused" });
+    expect(store.challenge(`${bad.txhash}:0`)?.reason).toMatch(
+      /could not be built: witness missing/,
+    );
+    // The batch after it was still judged and the poll recorded.
+    expect(store.get(`${byTx("4D19704D").txhash}:0`)).toBeDefined();
+    expect(store.lastPoll(ROLLUP)).toBeDefined();
+    expect(events.some((e) => e.event === "challenge_refused")).toBe(true);
   });
 
   it("retries a failed send at most three times", async () => {

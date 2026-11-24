@@ -80,6 +80,8 @@ export class Tower {
     planOf: () => BatchPlan;
     open: boolean;
     settlement: Settlement | "unknown";
+    /** Re-execution matched the chain; only the bundle disagreed. */
+    reexecMatch: boolean;
   }): Promise<void> {
     const { store, log, chainId, rollupId } = this.o;
     const at = this.nowDate().toISOString();
@@ -97,10 +99,41 @@ export class Tower {
       return;
     }
     if (!c.suspect || !c.open) return;
-    if (ch && !(ch.status === "failed" && ch.attempts < MAX_CHALLENGE_ATTEMPTS)) return;
+    // A recorded `watch` is sent once a challenger is configured; a failed send is retried.
+    const retry =
+      (ch?.status === "failed" && ch.attempts < MAX_CHALLENGE_ATTEMPTS) ||
+      (ch?.status === "watch" && this.o.challenger !== undefined);
+    if (ch && !retry) return;
 
-    const plan = c.planOf();
-    const d = decideChallenge({ chainId, rollupId, batch: c.b, plan });
+    let plan: BatchPlan;
+    let d: ReturnType<typeof decideChallenge>;
+    try {
+      plan = c.planOf();
+      d = decideChallenge({ chainId, rollupId, batch: c.b, plan });
+    } catch (err) {
+      // Building the proof failed: record it and keep the tick going.
+      store.putChallenge({
+        key: c.k,
+        rollup_id: rollupId,
+        batch_index: c.b.batch_index,
+        status: "refused",
+        reason: `fraud proof could not be built: ${(err as Error).message}`,
+        txhash: null,
+        attempts: ch?.attempts ?? 0,
+        honest_state_root: ch?.honest_state_root ?? c.b.state_root,
+        at,
+        resolved_at: null,
+        resubmitted_tx: null,
+      });
+      log({
+        event: "challenge_refused",
+        alert: true,
+        reason: String(err),
+        batch_index: c.b.batch_index,
+        txhash: c.b.txhash,
+      });
+      return;
+    }
     const row: ChallengeRow = {
       key: c.k,
       rollup_id: rollupId,
@@ -117,7 +150,14 @@ export class Tower {
     const base = { batch_index: c.b.batch_index, txhash: c.b.txhash, proof_bytes: d.proof.length };
     if (!d.fraud) {
       store.putChallenge(row);
-      log({ event: "challenge_refused", alert: true, reason: d.reason, ...base });
+      // Re-execution agrees with the chain but our verified bundle does not: our side is wrong.
+      const ours = c.reexecMatch;
+      log({
+        event: ours ? "bundle_disagrees" : "challenge_refused",
+        alert: true,
+        reason: ours ? "re-execution matches the chain; the proof bundle differs" : d.reason,
+        ...base,
+      });
       return;
     }
     if (!this.o.challenger) {
@@ -378,6 +418,7 @@ export class Tower {
           submittedTime !== null &&
           this.nowUnix() < submittedTime + windowSec,
         settlement: s.settlement,
+        reexecMatch: judged.match,
       });
       this.trackResubmission(b, batches);
     }

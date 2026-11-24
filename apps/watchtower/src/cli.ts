@@ -88,6 +88,8 @@ if (values["mnemonic-file"]) {
   throw new Error("pass --mnemonic-file or --dev-seed");
 }
 
+/** Fee room kept beside the bond when checking the cap: 1 QOR. */
+const CHALLENGE_FEE_HEADROOM_UQOR = 1_000_000n;
 let challenger: Challenger | undefined;
 if (values.challenge) {
   if (process.env.SDIQT_LIVE !== "yes") throw new Error("--challenge needs SDIQT_LIVE=yes");
@@ -100,6 +102,13 @@ if (values.challenge) {
   const bond = BigInt(
     (await client.rest.getRollup(rollup)).challengeBond ?? DEFAULT_CHALLENGE_BOND_UQOR,
   );
+  // Fail now rather than at the first fraud: the bond plus a fee must fit the cap.
+  const needed = bond + CHALLENGE_FEE_HEADROOM_UQOR;
+  if (needed > BigInt(values["cap-qor"]) * 1_000_000n) {
+    throw new Error(
+      `challenge bond ${bond} uqor plus fee headroom does not fit --cap-qor ${values["cap-qor"]}`,
+    );
+  }
   challenger = liveChallenger(account.tx, safe, rollup, bond);
 }
 

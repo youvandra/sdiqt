@@ -91,6 +91,8 @@ export class SafeTx {
       );
     }
     if (tx.code !== 0) {
+      // A failed tx still pays its fee but moves nothing else.
+      if (amountUqor > 0n) this.opts.cap.release(amountUqor);
       throw new ChainError(
         `${label}: tx ${tx.transactionHash} failed with code ${tx.code}: ${tx.rawLog ?? ""}`,
         "tx_failed",
