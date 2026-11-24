@@ -17,5 +17,9 @@
     "chunk_max_signed_entries": "4",
     "chunk_max_cycles": "6100000",
     "proof_deadline_s": "3300"
+  },
+  "qstr": {
+    "version": "1",
+    "max_bytes": "1024"
   }
 }
