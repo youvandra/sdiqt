@@ -10,7 +10,7 @@ use sdiqt_statement::{build_chunks, link_chunks, run_chunk, BatchClaim, ChunkOut
 use serde_json::Value;
 use sp1_sdk::{
     blocking::{ProveRequest, Prover, ProverClient},
-    include_elf, Elf, ProvingKey, SP1Stdin,
+    include_elf, Elf, HashableKey, ProvingKey, SP1Stdin,
 };
 
 const ELF: Elf = include_elf!("sdiqt-guest");
@@ -34,6 +34,10 @@ struct Args {
     /// Most entries per chunk proof.
     #[arg(long, default_value = "4")]
     chunk_size: usize,
+    /// Write each compressed chunk proof, its public values and the program's
+    /// verifying-key hash to this directory (verifier input format).
+    #[arg(long)]
+    out: Option<std::path::PathBuf>,
 }
 
 fn peak_rss_mb() -> f64 {
@@ -121,6 +125,11 @@ fn main() {
         println!("cycles total: {total}");
     } else if args.prove {
         let pk = client.setup(ELF).expect("setup");
+        if let Some(dir) = &args.out {
+            std::fs::create_dir_all(dir).expect("create out dir");
+            let vkey_hash = bincode::serialize(&pk.verifying_key().hash_koalabear()).unwrap();
+            std::fs::write(dir.join("vkey-hash.bin"), vkey_hash).expect("write vkey hash");
+        }
         let started = Instant::now();
         let mut outs = Vec::new();
         let mut proofs = Vec::new();
@@ -148,6 +157,16 @@ fn main() {
                 t.elapsed(),
                 peak_rss_mb()
             );
+            if let (Some(dir), false) = (&args.out, args.core) {
+                let bytes = bincode::serialize(&proof.proof).unwrap();
+                std::fs::write(dir.join(format!("chunk-{i}.proof.bin")), bytes)
+                    .expect("write proof");
+                std::fs::write(
+                    dir.join(format!("chunk-{i}.pv.bin")),
+                    proof.public_values.to_vec(),
+                )
+                .expect("write public values");
+            }
             let mut pv = proof.public_values.clone();
             outs.push(pv.read::<ChunkOutput>());
             proofs.push(proof);
