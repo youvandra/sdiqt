@@ -92,6 +92,21 @@ describe("simulate-first transactions", () => {
       code: "tx_failed",
     });
   });
+
+  it("keeps a failed tx's fee on the cap but gives back the amount it did not move", async () => {
+    const cap = new SpendCap(10n ** 10n);
+    const tx = new SafeTx({ simulate: async () => 100_000 }, { ...price, cap });
+    const failed = { code: 51, transactionHash: "CD", rawLog: "already challenged" } as never;
+    await expect(
+      tx.run({
+        label: "challenge",
+        messages: [],
+        amountUqor: 1_000_000_000n,
+        send: async () => failed,
+      }),
+    ).rejects.toMatchObject({ code: "tx_failed" });
+    expect(cap.snapshot().spentUqor).toBe(19_500n);
+  });
 });
 
 describe("retrying fetch", () => {

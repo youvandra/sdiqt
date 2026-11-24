@@ -4,7 +4,13 @@
  * only, never the transition-root validator).
  */
 import type { BatchRecord } from "@sdiqt/archiver";
-import { type BatchRoots, type InboxReplay, planBatch, rootDiff } from "@sdiqt/operator";
+import {
+  type BatchPlan,
+  type BatchRoots,
+  type InboxReplay,
+  planBatch,
+  rootDiff,
+} from "@sdiqt/operator";
 
 export const chainRoots = (b: BatchRecord): BatchRoots => ({
   inboxFrom: b.inbox_start,
@@ -20,6 +26,8 @@ export interface Judgement {
   /** Fields where the chain's roots differ from the honest ones. */
   differs: string[];
   honest: BatchRoots;
+  /** The honest plan, from which a fraud proof is built. */
+  plan: BatchPlan;
 }
 
 export function judgeBatch(
@@ -39,5 +47,5 @@ export function judgeBatch(
     entries: replay.range(start, end),
   });
   const differs = rootDiff(plan.roots, chainRoots(b));
-  return { match: differs.length === 0, differs, honest: plan.roots };
+  return { match: differs.length === 0, differs, honest: plan.roots, plan };
 }

@@ -48,7 +48,7 @@ export class SpendCap {
     this.spent += uqor;
   }
 
-  /** Give back a reservation that was never broadcast. */
+  /** Give back a reservation that was never broadcast, or an amount a failed tx did not move. */
   release(uqor: bigint): void {
     this.roll();
     this.spent = this.spent > uqor ? this.spent - uqor : 0n;

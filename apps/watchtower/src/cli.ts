@@ -3,14 +3,15 @@ import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { resolvePqcKeypair, signerFromEnv } from "@qorechain/rdk";
+import { DEFAULT_CHALLENGE_BOND_UQOR, resolvePqcKeypair, signerFromEnv } from "@qorechain/rdk";
 import { ArchiveLagError, catchUp } from "@sdiqt/archiver";
-import { createChainClient } from "@sdiqt/chain";
+import { connectAccount, createChainClient, parseGasPrice, SafeTx, SpendCap } from "@sdiqt/chain";
 import type { LogEvent } from "@sdiqt/operator";
-import { CHAIN_ID, fromHex, keygen, ROLLUP_ID, toHex } from "@sdiqt/protocol";
+import { CHAIN_GAS_PRICE, CHAIN_ID, fromHex, keygen, ROLLUP_ID, toHex } from "@sdiqt/protocol";
 import { createApiServer } from "./api.ts";
 import { bundleSource } from "./bundles.ts";
 import { restChain } from "./chain-view.ts";
+import { type Challenger, liveChallenger } from "./challenge.ts";
 import { TowerStore } from "./store.ts";
 import { Tower } from "./tower.ts";
 
@@ -27,6 +28,9 @@ const USAGE = `sdiqt-watchtower --operator <qor1...> --bundles <url|dir> (--mnem
   --interval <s>         default 30
   --duration <s>         stop after this long, default forever
   --log <file>           JSONL log, default data/watchtower/<rollup>.jsonl
+  --challenge            send challenges for confirmed fraud (needs SDIQT_LIVE=yes and
+                         --mnemonic-file; posts the rollup's challenge bond)
+  --cap-qor <n>          challenge only: daily spend cap incl. bond, default 1050
   --listen <host:port>   serve the read-only JSON API (/api/health, /api/batches, /api/receipts)`;
 
 const { values } = parseArgs({
@@ -43,6 +47,8 @@ const { values } = parseArgs({
     duration: { type: "string" },
     log: { type: "string" },
     listen: { type: "string" },
+    challenge: { type: "boolean", default: false },
+    "cap-qor": { type: "string", default: "1050" },
     help: { type: "boolean", default: false },
   },
 });
@@ -82,6 +88,30 @@ if (values["mnemonic-file"]) {
   throw new Error("pass --mnemonic-file or --dev-seed");
 }
 
+/** Fee room kept beside the bond when checking the cap: 1 QOR. */
+const CHALLENGE_FEE_HEADROOM_UQOR = 1_000_000n;
+let challenger: Challenger | undefined;
+if (values.challenge) {
+  if (process.env.SDIQT_LIVE !== "yes") throw new Error("--challenge needs SDIQT_LIVE=yes");
+  const file = values["mnemonic-file"];
+  if (!file) throw new Error("--challenge needs --mnemonic-file");
+  const account = await connectAccount(client, readFileSync(file, "utf8"));
+  if (!account.pqcRegistered) throw new Error(`${account.address} has no registered ML-DSA-87 key`);
+  const cap = new SpendCap(BigInt(values["cap-qor"]) * 1_000_000n);
+  const safe = new SafeTx(account.tx, { ...parseGasPrice(CHAIN_GAS_PRICE), cap });
+  const bond = BigInt(
+    (await client.rest.getRollup(rollup)).challengeBond ?? DEFAULT_CHALLENGE_BOND_UQOR,
+  );
+  // Fail now rather than at the first fraud: the bond plus a fee must fit the cap.
+  const needed = bond + CHALLENGE_FEE_HEADROOM_UQOR;
+  if (needed > BigInt(values["cap-qor"]) * 1_000_000n) {
+    throw new Error(
+      `challenge bond ${bond} uqor plus fee headroom does not fit --cap-qor ${values["cap-qor"]}`,
+    );
+  }
+  challenger = liveChallenger(account.tx, safe, rollup, bond);
+}
+
 const archiveDir = join(values.archive, rollup);
 const store = new TowerStore(dbFile);
 const tower = new Tower({
@@ -102,9 +132,10 @@ const tower = new Tower({
     }
   },
   log,
+  ...(challenger ? { challenger } : {}),
 });
 
-log({ event: "start", issuer: signer.issuer, db: dbFile });
+log({ event: "start", issuer: signer.issuer, db: dbFile, challenge: challenger !== undefined });
 const api = values.listen
   ? createApiServer({
       store,

@@ -39,6 +39,27 @@ export interface PollRow {
   height: string;
 }
 
+/** What the tower did about one mismatching submission. */
+export interface ChallengeRow {
+  key: string;
+  rollup_id: string;
+  batch_index: string;
+  /**
+   * watch: fraud confirmed locally, no challenger configured; refused: the local
+   * check did not say fraud, nothing sent; failed: the send threw (retried);
+   * sent: on chain; upheld: the batch was rejected; dismissed: it finalized.
+   */
+  status: "watch" | "refused" | "failed" | "sent" | "upheld" | "dismissed";
+  reason: string | null;
+  txhash: string | null;
+  attempts: number;
+  honest_state_root: string;
+  at: string;
+  resolved_at: string | null;
+  /** The submission that later took this batch index, if any. */
+  resubmitted_tx: string | null;
+}
+
 /** Columns added after the first release, with their SQL types. */
 const ADDED_COLUMNS: Array<[keyof BatchRow, string]> = [
   ["prev_state_root", "TEXT"],
@@ -65,6 +86,10 @@ export class TowerStore {
         id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT NOT NULL, issued_at TEXT NOT NULL,
         state TEXT NOT NULL, receipt TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS receipts_key ON receipts(key, id);
+      CREATE TABLE IF NOT EXISTS challenges (
+        key TEXT PRIMARY KEY, rollup_id TEXT NOT NULL, batch_index TEXT NOT NULL,
+        status TEXT NOT NULL, reason TEXT, txhash TEXT, attempts INTEGER NOT NULL,
+        honest_state_root TEXT NOT NULL, at TEXT NOT NULL, resolved_at TEXT, resubmitted_tx TEXT);
       CREATE TABLE IF NOT EXISTS polls (
         rollup_id TEXT PRIMARY KEY, at TEXT NOT NULL, height TEXT NOT NULL);
     `);
@@ -76,6 +101,22 @@ export class TowerStore {
     for (const [col, type] of ADDED_COLUMNS) {
       if (!have.has(col)) this.db.exec(`ALTER TABLE batches ADD COLUMN ${col} ${type}`);
     }
+  }
+
+  challenge(key: string): ChallengeRow | undefined {
+    return this.db.prepare("SELECT * FROM challenges WHERE key = ?").get(key) as
+      | ChallengeRow
+      | undefined;
+  }
+
+  putChallenge(row: ChallengeRow): void {
+    const cols = Object.keys(row);
+    this.db
+      .prepare(
+        `INSERT INTO challenges (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})
+         ON CONFLICT(key) DO UPDATE SET ${cols.map((c) => `${c} = excluded.${c}`).join(", ")}`,
+      )
+      .run(...(Object.values(row) as Array<string | number | null>));
   }
 
   setPoll(rollupId: string, poll: PollRow): void {
