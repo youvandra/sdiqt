@@ -5,11 +5,13 @@ import {
   type BatchPlan,
   type BatchRoots,
   dualSelfCheck,
+  evilRoots,
   InboxReplay,
   Operator,
   planBatch,
   type RustClaim,
   type RustClaimer,
+  rootDiff as rootDiffOf,
   type Submitter,
   shouldBatch,
 } from "../src/index.ts";
@@ -158,5 +160,58 @@ describe("live submit", () => {
     const op = operator(agreeing(plan), submit);
     expect(await op.submitPlan(plan, plan.roots)).toBe(true);
     expect(submit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("--evil-root (gate G3)", () => {
+  const make = (submit: Submitter, over: Record<string, unknown> = {}) =>
+    new Operator({
+      client: {} as never,
+      chainId: CHAIN,
+      rollupId: ROLLUP,
+      archiveDir: "unused",
+      rust: agreeing(batchOne()),
+      mode: "live",
+      submit,
+      log: () => {},
+      evilRoot: true,
+      evilRollup: ROLLUP,
+      ...over,
+    });
+
+  it("flips only the state root's last byte", () => {
+    const r = batchOne().roots;
+    const e = evilRoots(r);
+    expect(e.stateRoot.slice(0, -2)).toBe(r.stateRoot.slice(0, -2));
+    expect(e.stateRoot).not.toBe(r.stateRoot);
+    expect(rootDiffOf(r, e)).toEqual(["stateRoot"]);
+  });
+
+  it("refuses shadow mode and any rollup but ours", () => {
+    const submit = vi.fn<Submitter>();
+    expect(() => make(submit, { mode: "shadow" })).toThrow(/live mode/);
+    expect(() => make(submit, { evilRollup: "sdiqt-1" })).toThrow(/only runs on sdiqt-1/);
+  });
+
+  it("sends the evil roots once after both self-checks behave, then goes honest", async () => {
+    const plan = batchOne();
+    const submit = vi.fn<Submitter>(async () => ({ txhash: "EV" }));
+    const op = make(submit);
+    expect(await op.submitEvil(plan)).toBe(true);
+    expect(submit).toHaveBeenCalledWith(plan, evilRoots(plan.roots));
+    // One shot: the next batch goes through the normal checked path.
+    expect(await op.submitPlan(plan, plan.roots)).toBe(true);
+    expect(submit).toHaveBeenLastCalledWith(plan, plan.roots);
+  });
+
+  it("refuses when the honest plan does not pass the self-check", async () => {
+    const plan = batchOne();
+    const submit = vi.fn<Submitter>(async () => ({ txhash: "EV" }));
+    const rust: RustClaimer = {
+      claim: async () => asClaim({ ...plan.roots, stateRoot: flip(plan.roots.stateRoot) }),
+    };
+    const op = make(submit, { rust });
+    expect(await op.submitEvil(plan)).toBe(false);
+    expect(submit).not.toHaveBeenCalled();
   });
 });
