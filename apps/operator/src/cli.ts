@@ -3,16 +3,18 @@ import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { connectAccount, createChainClient, parseGasPrice, SafeTx, SpendCap } from "@sdiqt/chain";
-import { CHAIN_GAS_PRICE, CHAIN_ID, ROLLUP_ID } from "@sdiqt/protocol";
+import { BundleManifestV1, CHAIN_GAS_PRICE, CHAIN_ID, ROLLUP_ID } from "@sdiqt/protocol";
 import { type LogEvent, Operator, type Submitter } from "./operator.ts";
+import { postedDataFeeUqor, postQstr, prepareQstr } from "./qstr.ts";
 import { ProcessRustClaimer } from "./rust-claimer.ts";
 import { liveSubmitter } from "./submit.ts";
 
-const USAGE = `sdiqt-operator <shadow|history|live> [options]
+const USAGE = `sdiqt-operator <shadow|history|live|qstr> [options]
 
   shadow   watch a rollup, check every new chain batch, log what it would submit
   history  check every archived batch of a rollup against the replay, then exit
   live     submit batches (needs SDIQT_LIVE=yes and --mnemonic-file)
+  qstr     print the QSTR of --bundle; with --post, post it (SDIQT_LIVE=yes)
 
   --rollup <id>          default ${ROLLUP_ID}
   --archive <dir>        default data/archive
@@ -23,7 +25,10 @@ const USAGE = `sdiqt-operator <shadow|history|live> [options]
   --log <file>           JSONL log, default data/operator/<rollup>.jsonl
   --control <file>       run | pause | drain, default data/operator/control
   --mnemonic-file <f>    live only: the operator account mnemonic
-  --cap-qor <n>          live only: daily spend cap, default 50`;
+  --cap-qor <n>          live only: daily spend cap, default 50
+  --bundle <dir>         qstr: proof bundle directory holding manifest.json
+  --prover-id <id>       qstr: prover label, default sdiqt-mac-1
+  --post                 qstr: post the commitment to --rollup`;
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -38,12 +43,15 @@ const { values, positionals } = parseArgs({
     control: { type: "string", default: "data/operator/control" },
     "mnemonic-file": { type: "string" },
     "cap-qor": { type: "string", default: "50" },
+    bundle: { type: "string" },
+    "prover-id": { type: "string", default: "sdiqt-mac-1" },
+    post: { type: "boolean", default: false },
     help: { type: "boolean", default: false },
   },
 });
 
 const mode = positionals[0];
-if (values.help || (mode !== "shadow" && mode !== "history" && mode !== "live")) {
+if (values.help || !["shadow", "history", "live", "qstr"].includes(mode ?? "")) {
   console.log(USAGE);
   process.exit(values.help ? 0 : 2);
 }
@@ -57,21 +65,52 @@ const log = (e: LogEvent) => {
 };
 
 const client = createChainClient();
+
+async function liveAccount() {
+  if (process.env.SDIQT_LIVE !== "yes") throw new Error(`${mode} needs SDIQT_LIVE=yes`);
+  const file = values["mnemonic-file"];
+  if (!file) throw new Error(`${mode} needs --mnemonic-file`);
+  const account = await connectAccount(client, readFileSync(file, "utf8"));
+  if (!account.pqcRegistered) throw new Error(`${account.address} has no registered ML-DSA-87 key`);
+  const cap = new SpendCap(BigInt(values["cap-qor"]) * 1_000_000n);
+  return { account, safe: new SafeTx(account.tx, { ...parseGasPrice(CHAIN_GAS_PRICE), cap }) };
+}
+
+if (mode === "qstr") {
+  if (!values.bundle) throw new Error("qstr needs --bundle <dir>");
+  const manifest = BundleManifestV1.parse(
+    JSON.parse(readFileSync(join(values.bundle, "manifest.json"), "utf8")),
+  );
+  const proverId = values["prover-id"];
+  const { qstr, bytes, dataHash } = prepareQstr(manifest, proverId);
+  const feePerByte = BigInt((await client.rest.getParams()).postedDataFeePerByte ?? 0);
+  log({
+    event: "qstr",
+    batch_index: qstr.batchIndex,
+    bytes: bytes.length,
+    data_hash: dataHash,
+    manifest_sha256: qstr.manifestSha256,
+    data_fee_uqor: postedDataFeeUqor(bytes.length, feePerByte).toString(),
+  });
+  if (values.post) {
+    const { account, safe } = await liveAccount();
+    const r = await postQstr(
+      { tx: account.tx, safe, rollupId: values.rollup, feePerByte },
+      manifest,
+      proverId,
+    );
+    log({ event: "qstr_posted", batch_index: qstr.batchIndex, ...r });
+  }
+  process.exit(0);
+}
+
 const rust = new ProcessRustClaimer(values.prover);
 let operator: string | undefined;
 let submit: Submitter | undefined;
 
 if (mode === "live") {
-  if (process.env.SDIQT_LIVE !== "yes") throw new Error("live mode needs SDIQT_LIVE=yes");
-  const file = values["mnemonic-file"];
-  if (!file) throw new Error("live mode needs --mnemonic-file");
-  const account = await connectAccount(client, readFileSync(file, "utf8"));
-  if (!account.pqcRegistered) throw new Error(`${account.address} has no registered ML-DSA-87 key`);
-  const cap = new SpendCap(BigInt(values["cap-qor"]) * 1_000_000n);
-  submit = liveSubmitter(
-    account.tx,
-    new SafeTx(account.tx, { ...parseGasPrice(CHAIN_GAS_PRICE), cap }),
-  );
+  const { account, safe } = await liveAccount();
+  submit = liveSubmitter(account.tx, safe);
   operator = account.address;
 }
 
