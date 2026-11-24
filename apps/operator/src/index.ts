@@ -7,3 +7,4 @@ export * from "./replay.ts";
 export * from "./rust-claimer.ts";
 export * from "./selfcheck.ts";
 export * from "./submit.ts";
+export * from "./upload.ts";

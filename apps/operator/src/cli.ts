@@ -11,6 +11,7 @@ import { processProver } from "./prover-process.ts";
 import { postedDataFeeUqor, postQstr, prepareQstr } from "./qstr.ts";
 import { ProcessRustClaimer } from "./rust-claimer.ts";
 import { liveSubmitter } from "./submit.ts";
+import { rsyncUploader } from "./upload.ts";
 
 const USAGE = `sdiqt-operator <shadow|history|live|qstr> [options]
 
@@ -34,6 +35,8 @@ const USAGE = `sdiqt-operator <shadow|history|live|qstr> [options]
   --prove                shadow/live: prove every new chain batch, one at a time
   --verifier <path>      sdiqt-verify binary, default target/release/sdiqt-verify
   --work <dir>           inputs and bundles, default data/prove/<rollup>
+  --upload <dest>        rsync each verified bundle here (user@host:/srv/sdiqt/bundles)
+  --bundles-url <url>    public base URL of uploaded bundles, for the log
   --bundle <dir>         qstr: proof bundle directory holding manifest.json
   --prover-id <id>       qstr: prover label, default sdiqt-mac-1
   --post                 qstr: post the commitment to --rollup`;
@@ -55,6 +58,8 @@ const { values, positionals } = parseArgs({
     "evil-root": { type: "boolean", default: false },
     verifier: { type: "string", default: "target/release/sdiqt-verify" },
     work: { type: "string" },
+    upload: { type: "string" },
+    "bundles-url": { type: "string" },
     bundle: { type: "string" },
     "prover-id": { type: "string", default: "sdiqt-mac-1" },
     post: { type: "boolean", default: false },
@@ -148,6 +153,15 @@ if (values["evil-root"]) {
 const archiveDir = join(values.archive, values.rollup);
 const workDir = values.work ?? join("data/prove", values.rollup);
 const proverId = values["prover-id"];
+if (mode === "live" && values.prove && !values.upload) {
+  throw new Error("live --prove needs --upload: a QSTR must point at a bundle anyone can fetch");
+}
+const upload = values.upload
+  ? rsyncUploader({
+      dest: values.upload,
+      ...(values["bundles-url"] ? { publicBase: values["bundles-url"] } : {}),
+    })
+  : undefined;
 const proveQueue = values.prove
   ? new ProveQueue({
       runner: processProver({
@@ -160,10 +174,17 @@ const proveQueue = values.prove
       stateFile: join(workDir, "queue.json"),
       workDir,
       log,
-      onProven: async (_job, manifest) => {
+      onProven: async (job, manifest) => {
+        const uploaded = upload && job.bundle_dir ? await upload(job.bundle_dir) : undefined;
+        const where = uploaded ? { bundle_url: uploaded.url } : {};
         if (!posting) {
           const { bytes, dataHash } = prepareQstr(manifest, proverId);
-          return { qstr: "would_post", qstr_bytes: bytes.length, qstr_data_hash: dataHash };
+          return {
+            ...where,
+            qstr: "would_post",
+            qstr_bytes: bytes.length,
+            qstr_data_hash: dataHash,
+          };
         }
         const { account, safe } = posting.account;
         const r = await postQstr(
@@ -171,7 +192,7 @@ const proveQueue = values.prove
           manifest,
           proverId,
         );
-        return { qstr: "posted", qstr_tx: r.txhash, qstr_sequence: r.sequence };
+        return { ...where, qstr: "posted", qstr_tx: r.txhash, qstr_sequence: r.sequence };
       },
     })
   : undefined;
