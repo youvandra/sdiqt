@@ -8,6 +8,7 @@ import { ArchiveLagError, catchUp } from "@sdiqt/archiver";
 import { createChainClient } from "@sdiqt/chain";
 import type { LogEvent } from "@sdiqt/operator";
 import { CHAIN_ID, fromHex, keygen, ROLLUP_ID, toHex } from "@sdiqt/protocol";
+import { createApiServer } from "./api.ts";
 import { bundleSource } from "./bundles.ts";
 import { restChain } from "./chain-view.ts";
 import { TowerStore } from "./store.ts";
@@ -25,7 +26,8 @@ const USAGE = `sdiqt-watchtower --operator <qor1...> --bundles <url|dir> (--mnem
   --dev-seed <hex>       32-byte seed for a local test key instead (issuer marked dev:)
   --interval <s>         default 30
   --duration <s>         stop after this long, default forever
-  --log <file>           JSONL log, default data/watchtower/<rollup>.jsonl`;
+  --log <file>           JSONL log, default data/watchtower/<rollup>.jsonl
+  --listen <host:port>   serve the read-only JSON API (/api/health, /api/batches, /api/receipts)`;
 
 const { values } = parseArgs({
   options: {
@@ -40,6 +42,7 @@ const { values } = parseArgs({
     interval: { type: "string", default: "30" },
     duration: { type: "string" },
     log: { type: "string" },
+    listen: { type: "string" },
     help: { type: "boolean", default: false },
   },
 });
@@ -102,6 +105,20 @@ const tower = new Tower({
 });
 
 log({ event: "start", issuer: signer.issuer, db: dbFile });
+const api = values.listen
+  ? createApiServer({
+      store,
+      rollupId: rollup,
+      onError: (err) => log({ event: "api_error", alert: true, error: String(err) }),
+    })
+  : undefined;
+if (api && values.listen) {
+  const at = values.listen.lastIndexOf(":");
+  const host = at > 0 ? values.listen.slice(0, at) : "127.0.0.1";
+  const port = Number(values.listen.slice(at + 1));
+  await new Promise<void>((r) => api.listen(port, host, r));
+  log({ event: "api_listening", host, port });
+}
 const stopAt = values.duration
   ? Date.now() + Number(values.duration) * 1000
   : Number.POSITIVE_INFINITY;
@@ -114,5 +131,6 @@ while (Date.now() < stopAt) {
   }
   await new Promise((r) => setTimeout(r, Number(values.interval) * 1000));
 }
+await new Promise<void>((r) => (api ? api.close(() => r()) : r()));
 store.close();
 log({ event: "stop" });

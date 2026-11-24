@@ -7,7 +7,12 @@
  */
 import { type BatchRecord, readArchive } from "@sdiqt/archiver";
 import { archivedQstrs, InboxReplay, type LogEvent } from "@sdiqt/operator";
-import { PROVER_PROOF_DEADLINE_S, type ReceiptBodyV1 } from "@sdiqt/protocol";
+import {
+  type ApiProofClaim,
+  type BundleManifestV1,
+  PROVER_PROOF_DEADLINE_S,
+  type ReceiptBodyV1,
+} from "@sdiqt/protocol";
 import { type BundleVerdict, manifestVsBatch, qstrVsManifest, verifyBundle } from "@sdiqt/verify";
 import { type BundleSource, bundleName } from "./bundles.ts";
 import type { TowerChain } from "./chain-view.ts";
@@ -47,8 +52,12 @@ export class Tower {
     this.replay = new InboxReplay(o.chainId, o.rollupId);
   }
 
+  private nowDate(): Date {
+    return this.o.now ? this.o.now() : new Date();
+  }
+
   private nowUnix(): number {
-    return Math.floor((this.o.now ? this.o.now() : new Date()).getTime() / 1000);
+    return Math.floor(this.nowDate().getTime() / 1000);
   }
 
   async tick(): Promise<{ batches: number; receipts: number }> {
@@ -78,7 +87,11 @@ export class Tower {
     for (const b of ordered) {
       const k = key(b);
       const prev = store.get(k);
-      if (prev && isTerminal(prev)) continue;
+      if (prev && isTerminal(prev)) {
+        // Rows stored before roots were kept get them once; nothing else changes.
+        if (prev.state_root === null) store.put({ ...prev, ...rootsOf(b) });
+        continue;
+      }
 
       const judged = prev
         ? { match: prev.judged === "match", differs: JSON.parse(prev.differs) as string[] }
@@ -123,6 +136,7 @@ export class Tower {
       );
       let proven = prev?.validity === "proven";
       let bundleMs = prev?.bundle_ms ?? null;
+      let claim: string | null = prev?.claim ?? null;
       let note: string | null = null;
       if (!proven && q && judged.match) {
         const bundle = await this.o.bundles(bundleName(b.batch_index, b.txhash));
@@ -138,6 +152,7 @@ export class Tower {
             ...manifestVsBatch(bundle.manifest, b).map((f) => `chain.${f}`),
           ];
           bundleMs = Math.round(v.ms);
+          claim = JSON.stringify(claimOf(bundle.manifest, v.valid, bundleMs));
           if (!v.valid) note = `bundle INVALID: ${v.error}`;
           else if (diff.length) note = `bundle VALID but differs: ${diff.join(", ")}`;
           else proven = true;
@@ -170,7 +185,9 @@ export class Tower {
         qstr_tx: q?.txhash ?? null,
         bundle_ms: bundleMs,
         note,
-        updated_at: new Date().toISOString(),
+        updated_at: this.nowDate().toISOString(),
+        ...rootsOf(b),
+        claim,
       };
 
       if (!anchor) row.note = note ?? "no anchor for this batch: no receipt";
@@ -239,8 +256,35 @@ export class Tower {
       }
       store.put(row);
     }
+    store.setPoll(rollupId, {
+      at: this.nowDate().toISOString(),
+      height: tip.toString(),
+    });
     return { batches: batches.length, receipts: issued };
   }
+}
+
+const rootsOf = (b: BatchRecord) => ({
+  prev_state_root: b.prev_state_root,
+  state_root: b.state_root,
+  withdrawals_root: b.withdrawals_root,
+  data_hash: b.data_hash,
+});
+
+/** What a checked bundle claims, kept for the explorer's side-by-side view. */
+function claimOf(m: BundleManifestV1, verified: boolean, ms: number): ApiProofClaim {
+  return {
+    parent_root: m.parent_root,
+    state_root: m.state_root,
+    withdrawals_root: m.withdrawals_root,
+    data_hash: m.data_hash,
+    sig_mode: m.sig_mode,
+    program_vkey_hash: m.program_vkey_hash,
+    proof_root: m.proof_root,
+    verified,
+    verify_ms: String(ms),
+    chunks: m.chunks.map((c) => ({ index: c.index, proof_sha256: c.proof_sha256 })),
+  };
 }
 
 /** Nothing about a batch can change once it is settled and its validity is decided. */
