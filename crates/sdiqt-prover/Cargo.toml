@@ -1,0 +1,26 @@
+[package]
+name = "sdiqt-prover"
+version = "0.1.0"
+description = "Host that executes or proves qledger-v1 batches as linked SP1 chunk proofs"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+default-run = "sdiqt-prove"
+
+[[bin]]
+name = "sdiqt-prove"
+path = "src/bin/sdiqt-prove.rs"
+
+[dependencies]
+sp1-sdk = { version = "6.0.1", features = ["blocking", "profiling"] }
+serde_json = "1.0"
+serde = { version = "1.0.200", features = ["derive"] }
+clap = { version = "4.0", features = ["derive", "env"] }
+hex = "0.4.3"
+bincode = "1"
+libc = "0.2"
+qledger-core = { path = "../qledger-core" }
+sdiqt-statement = { path = "../sdiqt-statement" }
+
+[build-dependencies]
+sp1-build = "6.0.1"

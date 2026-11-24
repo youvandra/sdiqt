@@ -1,11 +1,16 @@
 [workspace]
 resolver = "2"
-members = []
-# CI builds and tests these; the SP1 guest and prover need the succinct
-# toolchain and are built on a prover machine with `-p`.
-default-members = []
+members = ["crates/qledger-core", "crates/sdiqt-statement", "crates/sdiqt-guest", "crates/sdiqt-prover"]
+# CI builds and tests these; the SP1 guest and prover need the SP1 toolchain
+# and are built on a prover machine with `-p sdiqt-prover`.
+default-members = ["crates/qledger-core", "crates/sdiqt-statement"]
 
 [workspace.package]
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/youvandra/sdiqt"
+
+# SP1 precompiles: SHA-256 (state tree, inbox) and Keccak-f (SHAKE-256, ML-DSA).
+[patch.crates-io]
+sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.9-sp1-6.10.0" }
+sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-6.10.0" }

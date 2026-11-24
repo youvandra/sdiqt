@@ -1,0 +1,11 @@
+[package]
+name = "sdiqt-guest"
+version = "0.1.0"
+description = "SP1 program that proves one SDIQT chunk statement"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+sp1-zkvm = "6.0.1"
+sdiqt-statement = { path = "../sdiqt-statement" }
