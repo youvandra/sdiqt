@@ -1,0 +1,28 @@
+{
+  "name": "@sdiqt/archiver",
+  "version": "0.1.0",
+  "description": "Canonical JSONL archive of a qledger rollup's inbox entries and batches",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "sdiqt-archive": "./src/cli.ts"
+  },
+  "scripts": {
+    "archive": "node src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@qorechain/rdk": "0.9.0",
+    "@sdiqt/chain": "workspace:*",
+    "@sdiqt/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "vitest": "5.1.1"
+  }
+}
