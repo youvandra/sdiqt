@@ -42,6 +42,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Generated constants are current
+        run: node scripts/gen-constants.mjs --check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

@@ -1,0 +1,19 @@
+{
+  "chain": {
+    "id": "qorechain-diana",
+    "evm_id": "9800"
+  },
+  "rollup": {
+    "id": "sdiqt-1",
+    "execution_vm": "qledger-v1",
+    "challenge_window_s": "3600",
+    "max_entries_per_batch": "64",
+    "batch_idle_blocks": "20"
+  },
+  "prover": {
+    "sp1_version": "6.10.0",
+    "chunk_max_signed_entries": "4",
+    "chunk_max_cycles": "6100000",
+    "proof_deadline_s": "3300"
+  }
+}
