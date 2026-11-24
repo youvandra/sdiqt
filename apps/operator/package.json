@@ -20,7 +20,8 @@
     "@qorechain/rdk": "0.9.0",
     "@sdiqt/archiver": "workspace:*",
     "@sdiqt/chain": "workspace:*",
-    "@sdiqt/protocol": "workspace:*"
+    "@sdiqt/protocol": "workspace:*",
+    "@sdiqt/verify": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "22.20.5",

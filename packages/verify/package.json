@@ -1,0 +1,22 @@
+{
+  "name": "@sdiqt/verify",
+  "version": "0.1.0",
+  "description": "Verify SDIQT proof bundles (SP1 compressed STARKs, WebAssembly) and match them with QSTR commitments and chain batches",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build:wasm": "../../scripts/build-wasm.sh"
+  },
+  "dependencies": {
+    "@sdiqt/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "vitest": "5.1.1"
+  }
+}
