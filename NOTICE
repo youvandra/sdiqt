@@ -1,0 +1,7 @@
+SDIQT
+Copyright 2026 The SDIQT Authors
+
+This product is licensed under the Apache License, Version 2.0.
+
+It includes code derived from the QoreChain Rollup Development Kit
+(qorechain-rdk 0.9.0, Apache License 2.0), in crates/qledger-core.

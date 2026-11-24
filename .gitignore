@@ -1,0 +1,25 @@
+# build output
+target/
+node_modules/
+dist/
+coverage/
+*.log
+
+# local data and secrets
+data/
+secrets/
+*.env
+.env*
+!.env.example
+
+# private working notes and tool config
+notes/
+NEXT.md
+CLAUDE.md
+AGENTS.md
+.claude/
+
+# editors and OS
+.DS_Store
+.idea/
+.vscode/
