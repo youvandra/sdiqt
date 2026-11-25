@@ -7,6 +7,9 @@
  *   GET /api/batches         latest submission at each batch index
  *   GET /api/batches/:i      every submission at index i: chain roots, proof claim, timeline
  *   GET /api/receipts/:i     the current submission's latest signed receipt, as JCS
+ *   POST /api/exits          store an exit packet v1 (the newest seq per account)
+ *   POST /api/exits/cancel   apply a signed exit cancel v1
+ *   GET /api/exits/:account  status of an account's exit packet (never its contents)
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
@@ -19,6 +22,7 @@ import {
   canonicalize,
   DecimalString,
 } from "@sdiqt/protocol";
+import { type ExitDesk, ExitRefused } from "./exits.ts";
 import type { BatchRow, TowerStore } from "./store.ts";
 
 export interface ApiOptions {
@@ -28,7 +32,12 @@ export interface ApiOptions {
   now?: () => Date;
   /** Called with errors that become a 500, which hides their text from clients. */
   onError?: (err: unknown) => void;
+  /** Enables the exit packet routes. */
+  exits?: ExitDesk;
 }
+
+/** Largest request body the exit routes read; a v1 packet is about 16 kB. */
+export const MAX_EXIT_BODY_BYTES = 64 * 1024;
 
 class HttpError extends Error {
   readonly status: number;
@@ -198,13 +207,59 @@ function send(res: ServerResponse, status: number, body: unknown): void {
   res.end(text);
 }
 
-/** Route one request; exported for tests that skip the socket. */
-export function handle(o: ApiOptions, req: IncomingMessage, res: ServerResponse): void {
+async function readJson(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const c of req as AsyncIterable<Buffer>) {
+    size += c.length;
+    if (size > MAX_EXIT_BODY_BYTES) throw new HttpError(413, "body too large");
+    chunks.push(c);
+  }
   try {
-    if (req.method !== "GET") throw new HttpError(405, "read-only API");
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    throw new HttpError(400, "body is not JSON");
+  }
+}
+
+async function exitRoute(
+  desk: ExitDesk,
+  req: IncomingMessage,
+  arg: string | undefined,
+): Promise<{ status: number; body: unknown }> {
+  try {
+    if (req.method === "POST" && arg === undefined)
+      return { status: 202, body: desk.accept(await readJson(req)) };
+    if (req.method === "POST" && arg === "cancel")
+      return { status: 200, body: desk.cancel(await readJson(req)) };
+    if (req.method === "GET" && arg && /^[0-9a-f]{64}$/.test(arg)) {
+      const v = desk.view(arg);
+      if (!v) throw new HttpError(404, "no exit packet for this account");
+      return { status: 200, body: v };
+    }
+  } catch (err) {
+    if (err instanceof ExitRefused) throw new HttpError(422, err.message);
+    throw err;
+  }
+  throw new HttpError(req.method === "GET" ? 404 : 405, "no such route");
+}
+
+/** Route one request; exported for tests that skip the socket. */
+export async function handle(
+  o: ApiOptions,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  try {
     const path = new URL(req.url ?? "/", "http://tower").pathname.replace(/\/+$/, "");
     const [, root, route, arg, extra] = path.split("/");
     if (root !== "api" || extra !== undefined) throw new HttpError(404, "no such route");
+    if (route === "exits" && o.exits) {
+      const r = await exitRoute(o.exits, req, arg);
+      send(res, r.status, r.body);
+      return;
+    }
+    if (req.method !== "GET") throw new HttpError(405, "read-only API");
     if (route === "health" && arg === undefined) {
       const h = health(o);
       send(res, h.status, h.body);
@@ -222,5 +277,5 @@ export function handle(o: ApiOptions, req: IncomingMessage, res: ServerResponse)
 }
 
 export function createApiServer(o: ApiOptions): Server {
-  return createServer((req, res) => handle(o, req, res));
+  return createServer((req, res) => void handle(o, req, res));
 }

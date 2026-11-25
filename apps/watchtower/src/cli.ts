@@ -3,15 +3,31 @@ import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { DEFAULT_CHALLENGE_BOND_UQOR, resolvePqcKeypair, signerFromEnv } from "@qorechain/rdk";
+import { deriveSealKeys } from "@qorechain/qoreseal";
+import {
+  DEFAULT_CHALLENGE_BOND_UQOR,
+  postRollupDataMsg,
+  resolvePqcKeypair,
+  signerFromEnv,
+} from "@qorechain/rdk";
 import { ArchiveLagError, catchUp } from "@sdiqt/archiver";
 import { connectAccount, createChainClient, parseGasPrice, SafeTx, SpendCap } from "@sdiqt/chain";
 import type { LogEvent } from "@sdiqt/operator";
-import { CHAIN_GAS_PRICE, CHAIN_ID, fromHex, keygen, ROLLUP_ID, toHex } from "@sdiqt/protocol";
+import { postedDataFeeUqor } from "@sdiqt/operator";
+import {
+  CHAIN_GAS_PRICE,
+  CHAIN_ID,
+  CHAIN_REST_URL,
+  fromHex,
+  keygen,
+  ROLLUP_ID,
+  toHex,
+} from "@sdiqt/protocol";
 import { createApiServer } from "./api.ts";
 import { bundleSource } from "./bundles.ts";
 import { restChain } from "./chain-view.ts";
 import { type Challenger, liveChallenger } from "./challenge.ts";
+import { ExitDesk } from "./exits.ts";
 import { TowerStore } from "./store.ts";
 import { Tower } from "./tower.ts";
 
@@ -31,7 +47,11 @@ const USAGE = `sdiqt-watchtower --operator <qor1...> --bundles <url|dir> (--mnem
   --challenge            send challenges for confirmed fraud (needs SDIQT_LIVE=yes and
                          --mnemonic-file; posts the rollup's challenge bond)
   --cap-qor <n>          challenge only: daily spend cap incl. bond, default 1050
-  --listen <host:port>   serve the read-only JSON API (/api/health, /api/batches, /api/receipts)`;
+  --listen <host:port>   serve the JSON API (/api/health, /api/batches, /api/receipts, /api/exits)
+  --exits                accept exit packets v1 sealed to the tower's registered ML-KEM-1024
+                         key (needs --mnemonic-file); due packets are opened but held
+  --exits-post           also post due withdrawals to the inbox (needs SDIQT_LIVE=yes)
+  --exit-cap-qor <n>     exit posts only: daily spend cap, default 2`;
 
 const { values } = parseArgs({
   options: {
@@ -49,6 +69,9 @@ const { values } = parseArgs({
     listen: { type: "string" },
     challenge: { type: "boolean", default: false },
     "cap-qor": { type: "string", default: "1050" },
+    exits: { type: "boolean", default: false },
+    "exits-post": { type: "boolean", default: false },
+    "exit-cap-qor": { type: "string", default: "2" },
     help: { type: "boolean", default: false },
   },
 });
@@ -114,6 +137,49 @@ if (values.challenge) {
 
 const archiveDir = join(values.archive, rollup);
 const store = new TowerStore(dbFile);
+let exits: ExitDesk | undefined;
+if (values.exits || values["exits-post"]) {
+  const file = values["mnemonic-file"];
+  if (!file) throw new Error("--exits needs --mnemonic-file");
+  const mnemonic = readFileSync(file, "utf8").trim();
+  const kemKeys = deriveSealKeys({ mnemonic, index: 0 });
+  // Packets are sealed to the key the chain registry names; refuse to run with another one.
+  const r = await fetch(`${CHAIN_REST_URL}/qorechain/pqc/v1/kem/${signer.issuer}`);
+  const body = (await r.json()) as { found?: boolean; key?: { public_key?: string } };
+  const registered =
+    body.found && body.key?.public_key
+      ? Buffer.from(body.key.public_key, "base64").toString("hex")
+      : undefined;
+  if (registered !== toHex(kemKeys.mlkemPublicKey))
+    throw new Error(`${signer.issuer}: registered ML-KEM key differs from the mnemonic's key`);
+  let post: ConstructorParameters<typeof ExitDesk>[0]["post"];
+  if (values["exits-post"]) {
+    if (process.env.SDIQT_LIVE !== "yes") throw new Error("--exits-post needs SDIQT_LIVE=yes");
+    const account = await connectAccount(client, mnemonic);
+    const cap = new SpendCap(BigInt(values["exit-cap-qor"]) * 1_000_000n);
+    const safe = new SafeTx(account.tx, { ...parseGasPrice(CHAIN_GAS_PRICE), cap });
+    const feePerByte = BigInt((await client.rest.getParams()).postedDataFeePerByte ?? 0);
+    post = async (data, label) => {
+      const { tx } = await safe.run({
+        label,
+        messages: [postRollupDataMsg({ poster: account.address, rollupId: rollup, data })],
+        amountUqor: postedDataFeeUqor(data.length, feePerByte),
+        send: () => account.tx.postRollupData({ rollupId: rollup, data }),
+      });
+      return { txhash: tx.transactionHash };
+    };
+  }
+  exits = new ExitDesk({
+    db: store.db,
+    chainId: CHAIN_ID,
+    rollupId: rollup,
+    tower: signer.issuer,
+    kemKeys,
+    ...(post ? { post } : {}),
+    log,
+  });
+}
+
 const tower = new Tower({
   chainId: CHAIN_ID,
   rollupId: rollup,
@@ -133,13 +199,21 @@ const tower = new Tower({
   },
   log,
   ...(challenger ? { challenger } : {}),
+  ...(exits ? { exits } : {}),
 });
 
-log({ event: "start", issuer: signer.issuer, db: dbFile, challenge: challenger !== undefined });
+log({
+  event: "start",
+  issuer: signer.issuer,
+  db: dbFile,
+  challenge: challenger !== undefined,
+  exits: exits ? (values["exits-post"] ? "post" : "hold") : "off",
+});
 const api = values.listen
   ? createApiServer({
       store,
       rollupId: rollup,
+      ...(exits ? { exits } : {}),
       onError: (err) => log({ event: "api_error", alert: true, error: String(err) }),
     })
   : undefined;

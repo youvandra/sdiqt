@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
+    "@qorechain/qoreseal": "0.1.0",
     "@qorechain/rdk": "0.9.0",
     "@sdiqt/archiver": "workspace:*",
     "@sdiqt/chain": "workspace:*",

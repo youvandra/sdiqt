@@ -4,11 +4,13 @@
  * command only simulates. With --send it needs SDIQT_LIVE=yes and refuses any
  * spend above --cap-qor.
  */
-import { appendFileSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
-import { ROLLUP_ID } from "@sdiqt/protocol";
+import { executeWithdrawalMsg } from "@qorechain/rdk";
+import { readArchive } from "@sdiqt/archiver";
+import { CHAIN_ID, ROLLUP_ID } from "@sdiqt/protocol";
 import {
   balanceUqor,
   bondMessages,
@@ -27,6 +29,8 @@ import {
   writeNewL2Seed,
   writeNewMnemonic,
 } from "./accounts.ts";
+import { exitCancel, sealExitPacket } from "./exit-packet.ts";
+import { withdrawalClaims } from "./withdraw.ts";
 
 const USAGE = `sdiqt-accounts <new|show|send|register|register-kem|create-rollup|bond> [options]
 
@@ -41,6 +45,13 @@ const USAGE = `sdiqt-accounts <new|show|send|register|register-kem|create-rollup
   deposit        deposit --uqor from --mnemonic-file into the L2 account of --l2-key
   l2-send        post a qledger tx signed by --l2-key: --to-key (transfer) or
                  --recipient (withdrawal), --uqor, --nonce; posted by --mnemonic-file
+  seal-exit      seal a withdrawal (--l2-key, --recipient, --uqor, --nonce) to --tower's
+                 registered ML-KEM-1024 key as exit packet --seq, released at
+                 --release-height; writes --out, and with --send delivers it to --tower-url
+  withdraw-exec  execute the withdrawal to --recipient in anchored batch --batch (FINAL),
+                 proof rebuilt from --archive; sent by --mnemonic-file
+  cancel-exit    sign a cancel of every exit packet of --l2-key up to --seq; writes --out,
+                 and with --send delivers it to --tower-url
 
   --mnemonic-file <f>  account mnemonic
   --unified            show: derive the unified (eth_secp256k1) address
@@ -55,7 +66,13 @@ const USAGE = `sdiqt-accounts <new|show|send|register|register-kem|create-rollup
   --to-key <f>         l2-send: qledger seed file of the recipient account
   --recipient <qor1>   l2-send: withdraw to this L1 address
   --uqor <n>           deposit / l2-send amount in uqor
-  --nonce <n>          l2-send: sender's next nonce (first is 0)
+  --nonce <n>          l2-send / seal-exit: sender's next nonce (first is 0)
+  --seq <n>            seal-exit / cancel-exit: packet sequence (higher replaces lower)
+  --release-height <n> seal-exit: first height at which the tower may post
+  --tower <qor1>       seal-exit: tower account whose KEM key the packet is sealed to
+  --tower-url <url>    tower base URL, e.g. https://sdiqt.xyz
+  --batch <n>          withdraw-exec: batch index holding the withdrawal
+  --archive <dir>      withdraw-exec: archive root, default data/archive
   --send               broadcast (needs SDIQT_LIVE=yes); without it, simulate only
   --log <f>            JSONL log, default data/accounts/gates.jsonl`;
 
@@ -76,6 +93,12 @@ const { values, positionals } = parseArgs({
     recipient: { type: "string" },
     uqor: { type: "string" },
     nonce: { type: "string" },
+    seq: { type: "string" },
+    "release-height": { type: "string" },
+    tower: { type: "string" },
+    "tower-url": { type: "string" },
+    batch: { type: "string" },
+    archive: { type: "string", default: "data/archive" },
     send: { type: "boolean", default: false },
     log: { type: "string", default: "data/accounts/gates.jsonl" },
     help: { type: "boolean", default: false },
@@ -93,6 +116,9 @@ const COMMANDS = [
   "l2-new",
   "deposit",
   "l2-send",
+  "seal-exit",
+  "cancel-exit",
+  "withdraw-exec",
 ];
 const mode = positionals[0] ?? "";
 if (values.help || !COMMANDS.includes(mode)) {
@@ -173,6 +199,66 @@ function l2Key(name: "l2-key" | "to-key") {
 }
 
 const hex = (b: Uint8Array) => Buffer.from(b).toString("hex");
+
+function decimalArg(name: string): bigint {
+  const raw = values[name as keyof typeof values];
+  if (typeof raw !== "string" || !/^[0-9]+$/.test(raw)) throw new Error(`${mode} needs --${name}`);
+  return BigInt(raw);
+}
+
+/** Write `doc` to --out (refuses to overwrite) and, with --send, POST it to the tower. */
+async function deliverExit(doc: unknown, path: string): Promise<void> {
+  const text = `${JSON.stringify(doc, null, 2)}\n`;
+  if (values.out) writeFileSync(values.out, text, { flag: "wx" });
+  if (!values.send) {
+    log({ stage: "written", out: values.out ?? null, bytes: text.length });
+    return;
+  }
+  const base = values["tower-url"];
+  if (!base) throw new Error("--send needs --tower-url");
+  const r = await fetch(new URL(path, base), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: text,
+  });
+  log({ stage: "delivered", status: r.status, tower: await r.json() });
+  if (!r.ok) process.exit(1);
+}
+
+if (mode === "seal-exit") {
+  const tower = values.tower;
+  if (!tower || !values.recipient) throw new Error("seal-exit needs --tower and --recipient");
+  const kem = await kemKeyHex(tower);
+  if (!kem) throw new Error(`${tower} has no registered ML-KEM-1024 key`);
+  const key = l2Key("l2-key");
+  const packet = sealExitPacket({
+    chainId: CHAIN_ID,
+    rollupId: values.rollup,
+    key,
+    nonce: decimalArg("nonce"),
+    amountUqor: uqorArg(),
+    recipient: values.recipient,
+    seq: decimalArg("seq"),
+    releaseHeight: decimalArg("release-height"),
+    tower,
+    towerKemPublicKey: Buffer.from(kem, "hex"),
+  });
+  console.log(JSON.stringify({ header: packet.header, envelope_chars: packet.envelope.length }));
+  await deliverExit(packet, "/api/exits");
+  process.exit(0);
+}
+
+if (mode === "cancel-exit") {
+  const cancel = exitCancel({
+    chainId: CHAIN_ID,
+    rollupId: values.rollup,
+    key: l2Key("l2-key"),
+    seq: decimalArg("seq"),
+  });
+  console.log(JSON.stringify(cancel.body));
+  await deliverExit(cancel, "/api/exits/cancel");
+  process.exit(0);
+}
 
 const mnemonic = readMnemonic(mnemonicFile());
 
@@ -293,6 +379,44 @@ if (mode === "deposit") {
     `deposit ${qor(amount)} QOR into ${values.rollup}`,
     depositMessages(values.rollup, key.accountId, amount),
     amount,
+  );
+  process.exit(0);
+}
+
+if (mode === "withdraw-exec") {
+  if (!values.recipient) throw new Error("withdraw-exec needs --recipient");
+  const batchIndex = decimalArg("batch").toString();
+  const { entries, batches } = await readArchive(join(values.archive, values.rollup));
+  const batch = batches
+    .filter((b) => b.batch_index === batchIndex)
+    .sort((a, b) => Number(BigInt(b.height) - BigInt(a.height)))[0];
+  if (!batch) throw new Error(`no archived batch ${batchIndex} on ${values.rollup}`);
+  const claims = withdrawalClaims({ chainId: CHAIN_ID, rollupId: values.rollup, entries, batch });
+  const claim = claims.find((c) => c.recipient === values.recipient);
+  if (!claim) throw new Error(`batch ${batchIndex} has no withdrawal to ${values.recipient}`);
+  log({
+    stage: "claim",
+    batch_index: batchIndex,
+    batch_tx: batch.txhash,
+    withdrawal_index: claim.index,
+    amount_qor: qor(claim.amount),
+    proof_len: claim.proof.length,
+  });
+  await runNative(
+    `execute withdrawal ${claim.index} of batch ${batchIndex}`,
+    (submitter) => [
+      executeWithdrawalMsg({
+        submitter,
+        rollupId: values.rollup,
+        batchIndex: BigInt(batchIndex),
+        withdrawalIndex: claim.index,
+        recipient: claim.recipient,
+        denom: "uqor",
+        amount: claim.amount.toString(),
+        proof: claim.proof,
+      }),
+    ],
+    0n,
   );
   process.exit(0);
 }

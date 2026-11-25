@@ -19,6 +19,7 @@ import { type BundleVerdict, manifestVsBatch, qstrVsManifest, verifyBundle } fro
 import { type BundleSource, bundleName } from "./bundles.ts";
 import type { TowerChain } from "./chain-view.ts";
 import { type Challenger, decideChallenge } from "./challenge.ts";
+import type { ExitDesk } from "./exits.ts";
 import { judgeBatch } from "./judge.ts";
 import { receiptState, SOUNDNESS_NOTE, signReceipt } from "./receipt.ts";
 import { type ChainRecord, type Settlement, settle, validity } from "./settle.ts";
@@ -43,6 +44,8 @@ export interface TowerOptions {
   now?: () => Date;
   /** Sends challenges; without it a confirmed fraud is recorded as `watch` only. */
   challenger?: Challenger;
+  /** Releases due exit packets each tick; see exits.ts. */
+  exits?: ExitDesk;
 }
 
 /** A failed challenge send is retried on later ticks up to this many times. */
@@ -203,7 +206,7 @@ export class Tower {
     });
   }
 
-  async tick(): Promise<{ batches: number; receipts: number }> {
+  async tick(): Promise<{ batches: number; receipts: number; exits: number }> {
     const { chain, store, rollupId, chainId, log } = this.o;
     try {
       await this.o.refreshArchive();
@@ -427,7 +430,13 @@ export class Tower {
       height: tip.toString(),
       window_s: String(windowSec),
     });
-    return { batches: batches.length, receipts: issued };
+    let exits = 0;
+    if (this.o.exits) {
+      // Based order: a posted withdrawal runs after every entry already in the inbox.
+      const ledger = this.replay.at(this.replay.head).ledger;
+      exits = await this.o.exits.tick(tip, (id) => ledger.get(id).nonce);
+    }
+    return { batches: batches.length, receipts: issued, exits };
   }
 }
 
