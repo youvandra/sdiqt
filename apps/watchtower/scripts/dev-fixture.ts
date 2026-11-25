@@ -12,14 +12,19 @@
  * - batches 5 and 6: pending, inside their challenge window;
  * - batches 2 and 3: final, proof deadline passed without a proof.
  *
+ * It also serves the bundle files at `/bundles/<name>/<file>`, as nginx does
+ * on the host, so the explorer can verify them in the browser.
+ *
  * Only the chain is scripted; archive, judging, bundle checks and receipts are
  * the production code paths. Receipts are signed with a dev key (issuer `dev:`).
  *
  *   node apps/watchtower/scripts/dev-fixture.ts [--listen 127.0.0.1:8802]
  */
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, normalize } from "node:path";
 import { parseArgs } from "node:util";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { postedDataHash } from "@qorechain/rdk";
@@ -123,7 +128,31 @@ const tower = new Tower({
 
 await tower.tick();
 const [host, port] = (values.listen ?? "").split(":");
-const api = createApiServer({ store, rollupId: ROLLUP });
+const apiServer = createApiServer({ store, rollupId: ROLLUP });
+const api = createServer(async (req, res) => {
+  const path = new URL(req.url ?? "/", "http://x").pathname;
+  if (!path.startsWith("/bundles/")) return void apiServer.emit("request", req, res);
+  const rel = normalize(decodeURIComponent(path.slice("/bundles/".length)));
+  if (
+    rel.startsWith("..") ||
+    !/^batch-[0-9]+-[0-9A-F]{12}\/(manifest\.json|chunk-[0-9]+\.bin)$/.test(rel)
+  ) {
+    res.writeHead(404).end();
+    return;
+  }
+  try {
+    const body = await readFile(join(BUNDLES, rel));
+    res
+      .writeHead(200, {
+        "content-type": rel.endsWith(".json") ? "application/json" : "application/octet-stream",
+        "content-length": body.length,
+        "cache-control": "public, max-age=31536000, immutable",
+      })
+      .end(body);
+  } catch {
+    res.writeHead(404).end();
+  }
+});
 api.listen(Number(port), host, () =>
   console.log(JSON.stringify({ event: "listen", url: `http://${values.listen}`, db: dir })),
 );
