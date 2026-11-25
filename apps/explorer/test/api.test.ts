@@ -8,6 +8,7 @@ const health = {
   last_poll_height: "10700000",
   lag_s: "400",
   max_lag_s: "300",
+  challenge_window_s: null,
   batches: "8",
   last_receipt: null,
 };

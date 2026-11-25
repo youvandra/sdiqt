@@ -1,0 +1,276 @@
+import type { ApiHealthV1 } from "@sdiqt/protocol";
+import { Hourglass } from "lucide-react";
+import { SectionHead } from "../components/Ui.tsx";
+import type { Filter } from "../lib/filters.ts";
+import {
+  type BatchRow,
+  duration,
+  entryCount,
+  num,
+  SETTLEMENT,
+  SETTLEMENT_ORDER,
+  type Settlement,
+  VALIDITY,
+  VALIDITY_ORDER,
+  type Validity,
+} from "../lib/format.ts";
+import { useNow } from "../lib/useNow.ts";
+
+interface Props {
+  rows: BatchRow[];
+  health: ApiHealthV1 | undefined;
+  onOpen: (index: string) => void;
+  onFilter: (f: Partial<Filter>) => void;
+}
+
+export function Overview({ rows, health, onOpen, onFilter }: Props) {
+  const total = rows.length;
+  const final = rows.filter((r) => r.settlement === "final").length;
+  const proven = rows.filter((r) => r.validity === "proven").length;
+  const rolledBack = rows.reduce((n, r) => n + Number(r.submissions) - 1, 0);
+  const entriesTotal = rows.reduce((n, r) => n + entryCount(r.inbox_from, r.inbox_end), 0);
+
+  return (
+    <section className="section overview" id="overview" aria-labelledby="overview-title">
+      <div className="streak" aria-hidden="true" />
+      <SectionHead eyebrow="Live" title="The rollup at a glance." id="overview-title">
+        Two independent answers for every batch: QoreChain says whether it settled, the STARK says
+        whether it was executed correctly.
+      </SectionHead>
+
+      <div className="card stats-card">
+        <Stat
+          value={num(total)}
+          label="Batches tracked"
+          note={`${num(entriesTotal)} inbox entries`}
+        />
+        <Stat
+          value={num(final)}
+          label="Final on QoreChain"
+          note={total ? `${Math.round((final / total) * 100)}% of batches` : "No batches yet"}
+        />
+        <Stat
+          value={num(proven)}
+          label="Proven by a STARK"
+          note={total ? `${Math.round((proven / total) * 100)}% of batches` : "No batches yet"}
+        />
+        <Stat
+          value={num(rolledBack)}
+          label="Submissions rolled back"
+          note="Removed by upheld fraud proofs"
+        />
+      </div>
+
+      <div className="overview-grid">
+        <Ribbon rows={rows} onOpen={onOpen} />
+        <Matrix rows={rows} onFilter={onFilter} />
+      </div>
+
+      <PendingWindows rows={rows} health={health} onOpen={onOpen} />
+    </section>
+  );
+}
+
+function Stat({ value, label, note }: { value: string; label: string; note: string }) {
+  return (
+    <div className="stat">
+      <span className="stat-value">{value}</span>
+      <span className="t-small-strong">{label}</span>
+      <span className="t-caption">{note}</span>
+    </div>
+  );
+}
+
+/** Every batch in index order: top half settlement, bottom half validity. */
+function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => void }) {
+  const shown = rows.slice(-160);
+  return (
+    <div className="card card-pad ribbon-card">
+      <div className="card-head">
+        <span className="card-title">Batch ribbon</span>
+        <span className="t-caption">
+          {rows.length > shown.length
+            ? `Latest ${shown.length} of ${rows.length}`
+            : `${rows.length} batches`}
+        </span>
+      </div>
+      {shown.length === 0 ? (
+        <p className="t-small">No batches archived yet.</p>
+      ) : (
+        <div className="ribbon">
+          {shown.map((r) => {
+            const s = SETTLEMENT[r.settlement];
+            const v = VALIDITY[r.validity];
+            return (
+              <button
+                key={`${r.batch_index}:${r.submit_tx}`}
+                type="button"
+                className="ribbon-cell"
+                onClick={() => onOpen(r.batch_index)}
+                title={`Batch ${r.batch_index}: ${s.label}, ${v.label}`}
+                aria-label={`Batch ${r.batch_index}, ${s.label}, ${v.label}`}
+              >
+                <span data-tone={s.tone} />
+                <span data-tone={v.tone} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="legend">
+        <span className="legend-group">
+          <span className="legend-swatch legend-top" /> Settlement
+        </span>
+        <span className="legend-group">
+          <span className="legend-swatch legend-bottom" /> Validity
+        </span>
+        <span className="legend-group">
+          <span className="dot" data-tone="ok" /> Final / Proven
+        </span>
+        <span className="legend-group">
+          <span className="dot" data-tone="wait" /> Pending / Proving
+        </span>
+        <span className="legend-group">
+          <span className="dot" data-tone="accent" /> Unproven
+        </span>
+        <span className="legend-group">
+          <span className="dot" data-tone="bad" /> Void / Mismatch
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Settlement x validity: how many batches sit in each pair of states. */
+function Matrix({ rows, onFilter }: { rows: BatchRow[]; onFilter: (f: Partial<Filter>) => void }) {
+  const count = (s: Settlement, v: Validity) =>
+    rows.filter((r) => r.settlement === s && r.validity === v).length;
+  const max = Math.max(
+    1,
+    ...SETTLEMENT_ORDER.flatMap((s) => VALIDITY_ORDER.map((v) => count(s, v))),
+  );
+  const settlements = SETTLEMENT_ORDER.filter(
+    (s) => s !== "unknown" || rows.some((r) => r.settlement === s),
+  );
+  return (
+    <div className="card card-pad matrix-card">
+      <div className="card-head">
+        <span className="card-title">Two axes</span>
+        <span className="t-caption">Select a cell to filter</span>
+      </div>
+      <div
+        className="matrix"
+        style={{ gridTemplateColumns: `auto repeat(${VALIDITY_ORDER.length}, 1fr)` }}
+      >
+        <span />
+        {VALIDITY_ORDER.map((v) => (
+          <span key={v} className="matrix-col t-caption">
+            {VALIDITY[v].label}
+          </span>
+        ))}
+        {settlements.map((s) => (
+          <MatrixRow key={s} s={s} count={count} max={max} onFilter={onFilter} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MatrixRow(p: {
+  s: Settlement;
+  count: (s: Settlement, v: Validity) => number;
+  max: number;
+  onFilter: (f: Partial<Filter>) => void;
+}) {
+  return (
+    <>
+      <span className="matrix-row t-small">{SETTLEMENT[p.s].label}</span>
+      {VALIDITY_ORDER.map((v) => {
+        const n = p.count(p.s, v);
+        return (
+          <button
+            key={v}
+            type="button"
+            className="matrix-cell"
+            data-empty={n === 0}
+            style={{ "--share": n / p.max } as React.CSSProperties}
+            onClick={() => p.onFilter({ settlement: p.s, validity: v, query: "" })}
+            aria-label={`${n} batches ${SETTLEMENT[p.s].label} and ${VALIDITY[v].label}`}
+          >
+            {n}
+          </button>
+        );
+      })}
+    </>
+  );
+}
+
+/** Batches still inside their challenge window, with time left. */
+function PendingWindows(p: {
+  rows: BatchRow[];
+  health: ApiHealthV1 | undefined;
+  onOpen: (i: string) => void;
+}) {
+  const pending = p.rows.filter((r) => r.settlement === "pending");
+  const windowS = p.health?.challenge_window_s ? Number(p.health.challenge_window_s) : undefined;
+  const now = useNow(1000, pending.length > 0);
+  if (pending.length === 0 || windowS === undefined) return null;
+  return (
+    <div className="card card-pad windows-card">
+      <div className="card-head">
+        <span className="card-title">
+          <Hourglass size={14} aria-hidden="true" /> Challenge windows open
+        </span>
+        <span className="t-caption">Window {duration(windowS)}</span>
+      </div>
+      <div className="windows">
+        {pending.map((r) => {
+          const start = r.submitted_time ? Date.parse(r.submitted_time) : undefined;
+          const left = start === undefined ? undefined : (start + windowS * 1000 - now) / 1000;
+          const share = left === undefined ? 0 : Math.min(1, Math.max(0, 1 - left / windowS));
+          return (
+            <button
+              key={r.batch_index}
+              type="button"
+              className="window"
+              onClick={() => p.onOpen(r.batch_index)}
+            >
+              <Ring share={share} />
+              <span className="window-text">
+                <span className="t-body-strong">Batch {r.batch_index}</span>
+                <span className="t-small">
+                  {left === undefined
+                    ? "Submission time unknown"
+                    : left > 0
+                      ? `${duration(left)} left`
+                      : "Finalizing"}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Ring({ share }: { share: number }) {
+  const r = 16;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+      <circle cx="20" cy="20" r={r} fill="none" stroke="var(--base-12)" strokeWidth="3" />
+      <circle
+        cx="20"
+        cy="20"
+        r={r}
+        fill="none"
+        stroke="var(--fill)"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeDasharray={`${c * share} ${c}`}
+        transform="rotate(-90 20 20)"
+      />
+    </svg>
+  );
+}

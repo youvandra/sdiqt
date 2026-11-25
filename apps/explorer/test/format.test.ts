@@ -22,7 +22,7 @@ describe("format", () => {
   });
 
   it("labels a rejected batch Void and a proven one Proven", () => {
-    expect(SETTLEMENT.rejected).toEqual({ label: "Void", tone: "bad" });
-    expect(VALIDITY.proven).toEqual({ label: "Proven", tone: "ok" });
+    expect(SETTLEMENT.rejected).toMatchObject({ label: "Void", tone: "bad" });
+    expect(VALIDITY.proven).toMatchObject({ label: "Proven", tone: "ok" });
   });
 });

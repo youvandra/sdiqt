@@ -1,51 +1,54 @@
 import { Link } from "react-router";
-import { REPO_URL, SPECS_URL } from "../lib/links.ts";
+import { LICENSE_URL, REPO_URL, SPECS_URL } from "../lib/links.ts";
 import { Logo } from "./Logo.tsx";
+import { SECTIONS } from "./Nav.tsx";
 
 export function Footer() {
   return (
     <footer className="footer">
       <div className="footer-content">
         <div className="footer-about">
-          <Logo gap={6} />
+          <Logo />
           <p className="t-small">
-            STARK validity receipts for a QoreChain qledger rollup. Every batch is re-executed,
-            proven and signed, and anyone can check the proof in a browser.
+            STARK validity receipts for QoreChain qledger rollups. Every batch is re-executed,
+            proven and signed, and the proof stays checkable after the chain prunes the batch.
           </p>
         </div>
         <div className="footer-nav">
           <div className="footer-col">
             <span className="t-small-strong">Explorer</span>
-            <Link className="t-small" to="/batches">
-              Batches
-            </Link>
-            <Link className="t-small" to="/security">
-              Security
-            </Link>
-          </div>
-          <div className="footer-col">
-            <span className="t-small-strong">Verify</span>
-            <Link className="t-small" to="/#how-it-works">
-              How It Works
-            </Link>
-            <a className="t-small" href={`${REPO_URL}#verify-it-yourself`}>
-              CLI Quick Start
-            </a>
+            {SECTIONS.map((s) => (
+              <Link key={s.id} className="t-small" to={`/#${s.id}`}>
+                {s.label}
+              </Link>
+            ))}
           </div>
           <div className="footer-col">
             <span className="t-small-strong">Project</span>
-            <a className="t-small" href={REPO_URL}>
-              GitHub
+            <a className="t-small" href={REPO_URL} target="_blank" rel="noreferrer">
+              Source Code
             </a>
-            <a className="t-small" href={SPECS_URL}>
+            <a className="t-small" href={SPECS_URL} target="_blank" rel="noreferrer">
               Specs
             </a>
+            <a className="t-small" href={LICENSE_URL} target="_blank" rel="noreferrer">
+              Apache-2.0 License
+            </a>
+          </div>
+          <div className="footer-col">
+            <span className="t-small-strong">Legal</span>
+            <Link className="t-small" to="/privacy">
+              Privacy Policy
+            </Link>
+            <Link className="t-small" to="/terms">
+              Terms of Use
+            </Link>
           </div>
         </div>
       </div>
       <div className="footer-bar">
-        <span className="t-small">Built on</span>
-        <span className="t-small-strong">QoreChain RDK, SP1 and ML-DSA-87</span>
+        <span className="t-small">© 2026 SDIQT. Testnet software on QoreChain diana.</span>
+        <span className="t-small">Built on the QoreChain RDK, SP1 and ML-DSA-87.</span>
       </div>
     </footer>
   );

@@ -1,65 +1,92 @@
 import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, NavLink, useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 import { REPO_URL } from "../lib/links.ts";
+import { GitHubMark } from "./Icons.tsx";
 import { Logo } from "./Logo.tsx";
 
-const LINKS = [
-  { to: "/batches", label: "Batches" },
-  { to: "/#how-it-works", label: "How It Works" },
-  { to: "/security", label: "Security" },
-];
+export const SECTIONS = [
+  { id: "overview", label: "Overview" },
+  { id: "batches", label: "Batches" },
+  { id: "how-it-works", label: "How It Works" },
+  { id: "security", label: "Security" },
+] as const;
+
+/** The section whose top passed the nav last, on the home page. */
+function useActiveSection(enabled: boolean): string | undefined {
+  const [active, setActive] = useState<string>();
+  useEffect(() => {
+    if (!enabled) return setActive(undefined);
+    const onScroll = () => {
+      let current: string | undefined;
+      for (const s of SECTIONS) {
+        const el = document.getElementById(s.id);
+        if (el && el.getBoundingClientRect().top <= 120) current = s.id;
+      }
+      setActive(current);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [enabled]);
+  return active;
+}
 
 export function Nav() {
+  const { pathname, hash } = useLocation();
   const [open, setOpen] = useState(false);
-  const location = useLocation();
+  const [scrolled, setScrolled] = useState(false);
+  const active = useActiveSection(pathname === "/");
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   // biome-ignore lint/correctness/useExhaustiveDependencies: close the menu on every navigation
-  useEffect(() => setOpen(false), [location.pathname, location.hash]);
+  useEffect(() => setOpen(false), [pathname, hash]);
 
   return (
-    <header className="nav">
-      <div className="nav-header">
-        <div className="nav-logo">
-          <Logo />
-        </div>
-        <nav className="nav-links" aria-label="Main">
-          {LINKS.map((l) =>
-            l.to.includes("#") ? (
-              <Link key={l.to} to={l.to} className="nav-link t-body">
-                {l.label}
-              </Link>
-            ) : (
-              <NavLink key={l.to} to={l.to} className="nav-link t-body">
-                {l.label}
-              </NavLink>
-            ),
-          )}
+    <header className="nav" data-scrolled={scrolled || open}>
+      <div className="nav-inner">
+        <Logo />
+        <nav className="nav-links" aria-label="Sections">
+          {SECTIONS.map((s) => (
+            <Link key={s.id} to={`/#${s.id}`} className="nav-link" data-active={active === s.id}>
+              {s.label}
+            </Link>
+          ))}
         </nav>
-        <div className="nav-cta">
-          <a className="btn btn-secondary" href={REPO_URL} target="_blank" rel="noreferrer">
-            GitHub
+        <div className="nav-end">
+          <a
+            className="icon-btn"
+            href={REPO_URL}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="SDIQT on GitHub"
+            title="GitHub"
+          >
+            <GitHubMark />
           </a>
+          <button
+            type="button"
+            className="icon-btn nav-burger"
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
-        <button
-          type="button"
-          className="nav-burger"
-          aria-label={open ? "Close menu" : "Open menu"}
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? <X size={24} /> : <Menu size={24} />}
-        </button>
       </div>
       {open && (
-        <nav className="nav-menu" aria-label="Mobile">
-          {LINKS.map((l) => (
-            <NavLink key={l.to} to={l.to} className="t-large">
-              {l.label}
-            </NavLink>
+        <nav className="nav-menu" aria-label="Sections">
+          {SECTIONS.map((s) => (
+            <Link key={s.id} to={`/#${s.id}`} className="t-large">
+              {s.label}
+            </Link>
           ))}
-          <a className="t-large" href={REPO_URL} target="_blank" rel="noreferrer">
-            GitHub
-          </a>
         </nav>
       )}
     </header>
