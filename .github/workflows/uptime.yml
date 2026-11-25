@@ -54,3 +54,17 @@ jobs:
             echo "::error::/bundles/ returned $code"
             exit 1
           fi
+      - name: Explorer served
+        run: |
+          set -euo pipefail
+          html=$(curl -fsS --max-time 15 https://sdiqt.xyz/)
+          if ! echo "$html" | grep -q "<title>SDIQT Explorer</title>"; then
+            echo "::error::https://sdiqt.xyz/ does not serve the explorer shell"
+            exit 1
+          fi
+          asset=$(echo "$html" | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "https://sdiqt.xyz${asset}")
+          if [ "$code" != "200" ]; then
+            echo "::error::explorer bundle ${asset} returned $code"
+            exit 1
+          fi
