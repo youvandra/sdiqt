@@ -13,14 +13,18 @@ import {
   balanceUqor,
   bondMessages,
   createRollupMessages,
+  depositMessages,
   kemKeyHex,
   kemRegistration,
+  l2TxMessages,
   nativeAddress,
   nativeSend,
   pqcStatus,
+  readL2Key,
   readMnemonic,
   registerPqc,
   unifiedSend,
+  writeNewL2Seed,
   writeNewMnemonic,
 } from "./accounts.ts";
 
@@ -33,6 +37,10 @@ const USAGE = `sdiqt-accounts <new|show|send|register|register-kem|create-rollup
   register-kem   register the native account's QoreSeal ML-KEM-1024 key
   create-rollup  create --rollup (nft, based, qledger-v1) with --stake-qor
   bond           bond --bond-qor as submitter of --rollup
+  l2-new         write a new qledger ML-DSA-44 seed to --out and print its account id
+  deposit        deposit --uqor from --mnemonic-file into the L2 account of --l2-key
+  l2-send        post a qledger tx signed by --l2-key: --to-key (transfer) or
+                 --recipient (withdrawal), --uqor, --nonce; posted by --mnemonic-file
 
   --mnemonic-file <f>  account mnemonic
   --unified            show: derive the unified (eth_secp256k1) address
@@ -43,6 +51,11 @@ const USAGE = `sdiqt-accounts <new|show|send|register|register-kem|create-rollup
   --stake-qor <n>      create-rollup: default 10000
   --bond-qor <n>       bond: default 1000
   --cap-qor <n>        refuse a send whose amount plus fee is above this
+  --l2-key <f>         qledger seed file (the sender, or the deposit target)
+  --to-key <f>         l2-send: qledger seed file of the recipient account
+  --recipient <qor1>   l2-send: withdraw to this L1 address
+  --uqor <n>           deposit / l2-send amount in uqor
+  --nonce <n>          l2-send: sender's next nonce (first is 0)
   --send               broadcast (needs SDIQT_LIVE=yes); without it, simulate only
   --log <f>            JSONL log, default data/accounts/gates.jsonl`;
 
@@ -58,13 +71,29 @@ const { values, positionals } = parseArgs({
     "stake-qor": { type: "string", default: "10000" },
     "bond-qor": { type: "string", default: "1000" },
     "cap-qor": { type: "string" },
+    "l2-key": { type: "string" },
+    "to-key": { type: "string" },
+    recipient: { type: "string" },
+    uqor: { type: "string" },
+    nonce: { type: "string" },
     send: { type: "boolean", default: false },
     log: { type: "string", default: "data/accounts/gates.jsonl" },
     help: { type: "boolean", default: false },
   },
 });
 
-const COMMANDS = ["new", "show", "send", "register", "register-kem", "create-rollup", "bond"];
+const COMMANDS = [
+  "new",
+  "show",
+  "send",
+  "register",
+  "register-kem",
+  "create-rollup",
+  "bond",
+  "l2-new",
+  "deposit",
+  "l2-send",
+];
 const mode = positionals[0] ?? "";
 if (values.help || !COMMANDS.includes(mode)) {
   console.log(USAGE);
@@ -119,6 +148,31 @@ if (mode === "new") {
   log({ file: values.out, native: await nativeAddress(mnemonic) });
   process.exit(0);
 }
+
+if (mode === "l2-new") {
+  if (!values.out) throw new Error("l2-new needs --out");
+  writeNewL2Seed(values.out);
+  log({
+    file: values.out,
+    account_id: Buffer.from(readL2Key(values.out).accountId).toString("hex"),
+  });
+  process.exit(0);
+}
+
+function uqorArg(): bigint {
+  const raw = values.uqor;
+  if (!raw || !/^[0-9]+$/.test(raw) || raw === "0")
+    throw new Error("--uqor must be a positive integer");
+  return BigInt(raw);
+}
+
+function l2Key(name: "l2-key" | "to-key") {
+  const f = values[name];
+  if (!f) throw new Error(`${mode} needs --${name}`);
+  return readL2Key(f);
+}
+
+const hex = (b: Uint8Array) => Buffer.from(b).toString("hex");
 
 const mnemonic = readMnemonic(mnemonicFile());
 
@@ -228,5 +282,47 @@ if (mode === "create-rollup") {
 if (mode === "bond") {
   const amount = wholeQor("--bond-qor", values["bond-qor"]);
   await runNative(`bond ${values.rollup}`, bondMessages(values.rollup, amount), amount);
+  process.exit(0);
+}
+
+if (mode === "deposit") {
+  const amount = uqorArg();
+  const key = l2Key("l2-key");
+  console.log(JSON.stringify({ l2_account: hex(key.accountId) }));
+  await runNative(
+    `deposit ${qor(amount)} QOR into ${values.rollup}`,
+    depositMessages(values.rollup, key.accountId, amount),
+    amount,
+  );
+  process.exit(0);
+}
+
+if (mode === "l2-send") {
+  const amount = uqorArg();
+  if (!values.nonce || !/^[0-9]+$/.test(values.nonce)) throw new Error("l2-send needs --nonce");
+  if (Boolean(values["to-key"]) === Boolean(values.recipient)) {
+    throw new Error("l2-send needs exactly one of --to-key or --recipient");
+  }
+  const key = l2Key("l2-key");
+  const to = values["to-key"] ? l2Key("to-key").accountId : undefined;
+  const post = l2TxMessages({
+    rollupId: values.rollup,
+    key,
+    nonce: BigInt(values.nonce),
+    amountUqor: amount,
+    ...(to ? { to } : {}),
+    ...(values.recipient ? { recipient: values.recipient } : {}),
+  });
+  console.log(
+    JSON.stringify({
+      from: hex(key.accountId),
+      ...(to ? { to: hex(to) } : { recipient: values.recipient }),
+      nonce: values.nonce,
+      amount_uqor: amount.toString(),
+      bytes: post.bytes,
+    }),
+  );
+  // Posted-data fee is per byte on top of gas; the simulation covers it.
+  await runNative(`post qledger tx to ${values.rollup}`, post.messages, 0n);
   process.exit(0);
 }
