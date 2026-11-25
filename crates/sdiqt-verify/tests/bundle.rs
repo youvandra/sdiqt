@@ -26,6 +26,7 @@ fn reseal(m: &mut Manifest, proofs: &[Vec<u8>]) {
     let hashes: Vec<[u8; 32]> = proofs.iter().map(|p| sha256(p)).collect();
     for (i, (c, h)) in m.chunks.iter_mut().zip(&hashes).enumerate() {
         c.index = i.to_string();
+        c.file = sdiqt_verify::bundle::chunk_file(i);
         c.proof_sha256 = hex::encode(h);
     }
     m.proof_root = hex::encode(proof_root(&hashes));
@@ -189,4 +190,44 @@ fn the_json_entry_point_refuses_bad_input() {
     assert!(sdiqt_verify::verify_bundle_json(&other, &proofs, None).is_err());
     let extra = json.replacen('{', "{\"extra\":\"x\",", 1);
     assert!(sdiqt_verify::verify_bundle_json(&extra, &proofs, None).is_err());
+}
+
+#[test]
+fn chunk_files_must_be_chunk_n_bin() {
+    let (m, proofs) = load();
+    let mut bad = m.clone();
+    bad.chunks[0].file = "../manifest.json".into();
+    assert!(bad.check_files().is_err());
+    assert!(sdiqt_verify::verify_bundle(&bad, &proofs, None).is_err());
+    let tmp = std::env::temp_dir().join(format!("sdiqt-badfile-{}", std::process::id()));
+    std::fs::create_dir_all(&tmp).unwrap();
+    bad.write(&tmp).unwrap();
+    assert!(
+        Manifest::read(&tmp).is_err(),
+        "manifest naming ../ is refused"
+    );
+    std::fs::remove_dir_all(&tmp).unwrap();
+}
+
+#[test]
+fn public_values_with_trailing_bytes_are_refused() {
+    let (m, _) = load();
+    let mut pv = hex::decode(&m.chunks[0].public_values).unwrap();
+    assert!(sdiqt_verify::decode_public_values(&pv).is_ok());
+    pv.push(0);
+    let err = sdiqt_verify::decode_public_values(&pv).unwrap_err();
+    assert!(err.contains("trailing"), "{err}");
+}
+
+#[test]
+fn manifest_integers_must_be_canonical() {
+    let (m, proofs) = load();
+    for bad in [format!("+{}", m.inbox_end), format!("0{}", m.inbox_end)] {
+        let mut b = m.clone();
+        b.inbox_end = bad.clone();
+        assert!(
+            sdiqt_verify::verify_bundle(&b, &proofs, None).is_err(),
+            "{bad}"
+        );
+    }
 }

@@ -6,11 +6,11 @@
 
 pub mod bundle;
 
-use sdiqt_statement::{link_chunks, BatchClaim, ChunkOutput, SigMode};
+use sdiqt_statement::{link_chunks, parse_canonical_u64, BatchClaim, ChunkOutput, SigMode};
 use sp1_verifier::compressed::{CompressedError, SP1CompressedVerifierRaw};
 use thiserror::Error;
 
-use bundle::{proof_root, sha256, Manifest};
+use bundle::{chunk_file, proof_root, sha256, Manifest};
 
 /// Why a proof or bundle was rejected.
 #[derive(Debug, Error)]
@@ -50,9 +50,18 @@ pub fn verify_chunk(
     SP1CompressedVerifierRaw::verify_with_public_values(proof, public_values, vkey_hash)
 }
 
-/// Decode a chunk's public values into its statement output.
+/// Decode a chunk's public values into its statement output. The bytes must
+/// be exactly the bincode of that output: trailing bytes are refused.
 pub fn decode_public_values(public_values: &[u8]) -> Result<ChunkOutput, String> {
-    bincode::deserialize(public_values).map_err(|e| e.to_string())
+    let out: ChunkOutput = bincode::deserialize(public_values).map_err(|e| e.to_string())?;
+    let used = bincode::serialized_size(&out).map_err(|e| e.to_string())?;
+    if used != public_values.len() as u64 {
+        return Err(format!(
+            "{} trailing bytes after the output",
+            public_values.len() as u64 - used
+        ));
+    }
+    Ok(out)
 }
 
 fn unhex(name: &'static str, v: &str) -> Result<Vec<u8>, VerifyError> {
@@ -69,7 +78,7 @@ fn unhex32(name: &'static str, v: &str) -> Result<[u8; 32], VerifyError> {
 }
 
 fn int(name: &'static str, v: &str) -> Result<u64, VerifyError> {
-    v.parse().map_err(|_| VerifyError::Field(name, v.into()))
+    parse_canonical_u64(v).ok_or_else(|| VerifyError::Field(name, v.into()))
 }
 
 /// The display name of a signature mode in manifests.
@@ -106,6 +115,9 @@ pub fn verify_bundle(
     for (i, (entry, proof)) in manifest.chunks.iter().zip(proofs).enumerate() {
         if entry.index != i.to_string() {
             return Err(VerifyError::ChunkOrder(i, entry.index.clone()));
+        }
+        if entry.file != chunk_file(i) {
+            return Err(VerifyError::Field("file", entry.file.clone()));
         }
         let hash = sha256(proof);
         if hex::encode(hash) != entry.proof_sha256 {

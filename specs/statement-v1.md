@@ -52,12 +52,12 @@ The program commits one `ChunkOutput` with bincode 1 (legacy options: fixed-widt
 
 Integers here are little-endian, unlike QSTR and every hash input, which are big-endian.
 
-- **STMT-1.** A decoder MUST refuse public values that end before the last field.
+- **STMT-1.** A decoder MUST refuse public values that end before the last field or continue after it.
 - **STMT-2.** A decoder MUST refuse a string field that is not valid UTF-8.
 - **STMT-3.** A decoder MUST refuse a mode other than `0` or `1`.
 - **STMT-4.** A decoder MUST refuse a signature bit byte other than `0` or `1`.
 
-The reference decoder ignores bytes after `sig_bits`. A verifier decodes public values only after the chunk proof verifies against them (bundle rule BND-8), and the proof commits to the whole byte string, so extra bytes cannot reach a decoder on that path.
+The program commits exactly one `ChunkOutput`, so a byte after `sig_bits` means the bytes did not come from it.
 
 ## Linking
 

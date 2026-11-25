@@ -395,9 +395,13 @@ md.push("## Not shown yet");
 md.push("");
 for (const o of claimsDoc.open) md.push(`- **${o.requirement}:** ${o.plan}.`);
 md.push("");
+const createdHeight = claimRows.find((c) => c.id === "rollup-created")?.height;
+if (!createdHeight) throw new Error("docs/claims.json needs the rollup-created claim");
 md.push("## Check it yourself");
 md.push("");
 md.push("```bash");
+md.push("pnpm install --frozen-lockfile");
+md.push(`node apps/archiver/src/cli.ts --rollup ${ROLLUP_ID} --from-height ${createdHeight}`);
 md.push(
   `node scripts/proof.mjs --bundles https://sdiqt.xyz/bundles --at-height ${atHeight} --check`,
 );

@@ -48,8 +48,7 @@ pub struct ArchiveBatch {
 }
 
 fn int(name: &'static str, v: &str) -> Result<u64, InputError> {
-    v.parse()
-        .map_err(|_| InputError::Field(name, v.to_string()))
+    crate::parse_canonical_u64(v).ok_or_else(|| InputError::Field(name, v.to_string()))
 }
 
 fn entry(e: &ArchiveEntry) -> Result<QledgerEntry, InputError> {

@@ -215,6 +215,11 @@ json("vectors/statement/cases.json", {
         rule: "STMT-1",
         public_values: toHex(truncated.subarray(0, truncated.length - 1)),
       },
+      {
+        name: "one byte after sig_bits",
+        rule: "STMT-1",
+        public_values: toHex(Uint8Array.from([...fromHex(pv(c0)), 0])),
+      },
       { name: "chain_id is not UTF-8", rule: "STMT-2", public_values: toHex(badUtf8) },
       { name: "signature mode variant 2", rule: "STMT-3", public_values: pv({ ...c0, mode: 2 }) },
       {
@@ -528,11 +533,12 @@ const slotHash = (s: ProofSlot) => {
   return toHex(sha256(s.flip === undefined ? p : flip(p, s.flip)));
 };
 
-/** A manifest over these proof slots with indexes, hashes and proof root rewritten. */
+/** A manifest over these proof slots with indexes, file names, hashes and proof root rewritten. */
 function reseal(slots: ProofSlot[], edit: Partial<BundleManifestV1> = {}) {
   const chunks = slots.map((s, i) => ({
     ...(manifest.chunks[s.from] as BundleManifestV1["chunks"][number]),
     index: String(i),
+    file: `chunk-${i}.bin`,
     proof_sha256: slotHash(s),
   }));
   return { ...manifest, chunks, proof_root: proofRoot(chunks.map((c) => c.proof_sha256)), ...edit };
@@ -636,6 +642,17 @@ json("vectors/bundles/cases.json", {
       }),
       proofs: allSlots,
       error: 'ChunkOrder(1, "2")',
+    },
+    {
+      name: "chunk 1 stored under another chunk's file name",
+      rule: "BND-6",
+      check: "verifier",
+      manifest: text({
+        ...manifest,
+        chunks: manifest.chunks.map((c, i) => (i === 1 ? { ...c, file: "chunk-2.bin" } : c)),
+      }),
+      proofs: allSlots,
+      error: 'Field("file", "chunk-2.bin")',
     },
     {
       name: "flipped proof byte",

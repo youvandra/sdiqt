@@ -8,7 +8,13 @@
  * pending batch an upheld challenge rolls back is marked rejected (VOID).
  */
 import { type BatchRecord, readArchive } from "@sdiqt/archiver";
-import { archivedQstrs, type BatchPlan, InboxReplay, type LogEvent } from "@sdiqt/operator";
+import {
+  type ArchivedQstr,
+  archivedQstrs,
+  type BatchPlan,
+  InboxReplay,
+  type LogEvent,
+} from "@sdiqt/operator";
 import {
   type ApiProofClaim,
   type BundleManifestV1,
@@ -279,12 +285,7 @@ export class Tower {
         null;
 
       // Proof: our QSTR for exactly these roots, its bundle verified and matched.
-      const q = qstrs.find(
-        (x) =>
-          x.qstr.batchIndex === b.batch_index &&
-          x.qstr.stateRoot === b.state_root &&
-          x.qstr.inboxEnd === b.inbox_end,
-      );
+      const q = qstrForRoots(qstrs, b);
       let proven = prev?.validity === "proven";
       let bundleMs = prev?.bundle_ms ?? null;
       let claim: string | null = prev?.claim ?? null;
@@ -438,6 +439,24 @@ export class Tower {
     }
     return { batches: batches.length, receipts: issued, exits };
   }
+}
+
+/**
+ * The operator QSTR that commits to exactly this batch: same index, state
+ * root and inbox end. A QSTR for a replaced or rolled-back batch at the same
+ * index names other roots and never matches; among matches the first posted
+ * wins, as in `qstrForBatch`.
+ */
+export function qstrForRoots(
+  qstrs: readonly ArchivedQstr[],
+  b: Pick<BatchRecord, "batch_index" | "state_root" | "inbox_end">,
+): ArchivedQstr | undefined {
+  return qstrs.find(
+    (x) =>
+      x.qstr.batchIndex === b.batch_index &&
+      x.qstr.stateRoot === b.state_root &&
+      x.qstr.inboxEnd === b.inbox_end,
+  );
 }
 
 const rootsOf = (b: BatchRecord) => ({
