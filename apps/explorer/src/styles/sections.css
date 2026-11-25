@@ -135,7 +135,8 @@ section[id] {
 }
 .stats-card {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   width: 100%;
 }
 .stat {
@@ -752,7 +753,11 @@ section[id] {
     border-radius: 16px;
   }
   .stats-card {
+    grid-auto-flow: row;
     grid-template-columns: 1fr 1fr;
+  }
+  .stat:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
   .stat {
     padding: 18px;

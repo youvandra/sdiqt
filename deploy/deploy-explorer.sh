@@ -9,6 +9,8 @@ pnpm --dir apps/explorer build
 # Assets first (hashed names), the shell last, so no visitor gets a shell
 # that points at chunks not uploaded yet.
 rsync -az apps/explorer/dist/assets/ "$HOST:/var/www/sdiqt/assets/"
-rsync -az --delete --exclude index.html apps/explorer/dist/ "$HOST:/var/www/sdiqt/"
+rsync -az --delete --exclude index.html --exclude counts.json apps/explorer/dist/ "$HOST:/var/www/sdiqt/"
+# PROOF.md numbers (scripts/proof.mjs) for the landing's median proof time.
+rsync -az docs/counts.json "$HOST:/var/www/sdiqt/counts.json"
 rsync -az apps/explorer/dist/index.html "$HOST:/var/www/sdiqt/index.html"
 curl -fsS -o /dev/null -w "https://sdiqt.xyz/ %{http_code} %{time_total}s\n" https://sdiqt.xyz/

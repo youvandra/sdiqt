@@ -9,6 +9,7 @@ import {
   ApiErrorV1,
   ApiHealthV1,
   ApiReceiptV1,
+  CountsV1,
 } from "@sdiqt/protocol";
 import { useEffect, useRef, useState } from "react";
 import type { z } from "zod";
@@ -47,6 +48,13 @@ export const api = {
     getParsed(`/api/batches/${encodeURIComponent(i)}`, ApiBatchDetailV1, [200], signal),
   receipt: (i: string, signal?: AbortSignal) =>
     getParsed(`/api/receipts/${encodeURIComponent(i)}`, ApiReceiptV1, [200], signal),
+  /** `docs/counts.json` as deployed next to the explorer; absent in dev. */
+  counts: async (signal?: AbortSignal): Promise<CountsV1 | null> => {
+    const res = await fetch("/counts.json", { signal: signal ?? null, cache: "no-store" });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}`);
+    return CountsV1.parse(await res.json());
+  },
 };
 
 export interface Polled<T> {
