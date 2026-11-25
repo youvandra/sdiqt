@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "sdiqt-proof-bundle"
+    },
+    "version": {
+      "type": "string",
+      "const": "1"
+    },
+    "chain_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rollup_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "batch_index": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "inbox_from": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "inbox_end": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "parent_root": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "state_root": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "withdrawals_root": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})*$"
+    },
+    "data_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sig_mode": {
+      "type": "string",
+      "enum": [
+        "full",
+        "v0"
+      ]
+    },
+    "sp1_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "program_vkey_hash": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})*$"
+    },
+    "proof_root": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "chunks": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "file": {
+            "type": "string",
+            "pattern": "^chunk-[0-9]+\\.bin$"
+          },
+          "proof_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "public_values": {
+            "type": "string",
+            "pattern": "^([0-9a-f]{2})*$"
+          }
+        },
+        "required": [
+          "index",
+          "file",
+          "proof_sha256",
+          "public_values"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "chain_id",
+    "rollup_id",
+    "batch_index",
+    "inbox_from",
+    "inbox_end",
+    "parent_root",
+    "state_root",
+    "withdrawals_root",
+    "data_hash",
+    "sig_mode",
+    "sp1_version",
+    "program_vkey_hash",
+    "proof_root",
+    "chunks"
+  ],
+  "additionalProperties": false
+}

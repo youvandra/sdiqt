@@ -1,0 +1,408 @@
+{
+  "spec": "specs/qstr-v1.md",
+  "generator": "packages/protocol/scripts/vectors.ts",
+  "valid": [
+    {
+      "name": "golden-v328, prover sdiqt-golden",
+      "hex": "51535452010f716f7265636861696e2d6469616e61106d792d6c65646765722d726f6c6c757000000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0113e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe530c73646971742d676f6c64656e0003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      }
+    },
+    {
+      "name": "batch without withdrawals",
+      "hex": "51535452010f716f7265636861696e2d6469616e61106d792d6c65646765722d726f6c6c757000000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f200000000000000000000000000000000000000000000000000000000000000005eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0113e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe530c73646971742d676f6c64656e0003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      }
+    },
+    {
+      "name": "every string at 255 bytes: 1,024 bytes",
+      "hex": "5153545201ff636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363ff72727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727200000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0113e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53ff7070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070700003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f",
+      "qstr": {
+        "chainId": "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "rollupId": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      }
+    }
+  ],
+  "decode_invalid": [
+    {
+      "name": "1,025 bytes",
+      "rule": "QSTR-1",
+      "hex": "5153545201ff636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363ff72727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727200000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0113e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53ff7070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070700003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f00",
+      "error": "the limit is 1024"
+    },
+    {
+      "name": "magic QSTS",
+      "rule": "QSTR-2",
+      "hex": "51535453010f716f7265636861696e2d6469616e61106d792d6c65646765722d726f6c6c757000000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0113e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe530c73646971742d676f6c64656e0003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f",
+      "error": "not a QSTR commitment"
+    },
+    {
+      "name": "version 2",
+      "rule": "QSTR-3",
+      "hex": "51535452020f716f7265636861696e2d6469616e61106d792d6c65646765722d726f6c6c757000000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0113e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe530c73646971742d676f6c64656e0003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f",
+      "error": "unsupported QSTR version 2"
+    },
+    {
+      "name": "chain_id length 0",
+      "rule": "QSTR-4",
+      "hex": "515354520100716f7265636861696e2d6469616e61106d792d6c65646765722d726f6c6c757000000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0113e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe530c73646971742d676f6c64656e0003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f",
+      "error": "chain_id is empty"
+    },
+    {
+      "name": "chain_id is not UTF-8",
+      "rule": "QSTR-5",
+      "hex": "51535452010fff6f7265636861696e2d6469616e61106d792d6c65646765722d726f6c6c757000000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0113e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe530c73646971742d676f6c64656e0003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f",
+      "error": "chain_id is not valid UTF-8"
+    },
+    {
+      "name": "sig_mode 0",
+      "rule": "QSTR-6",
+      "hex": "51535452010f716f7265636861696e2d6469616e61106d792d6c65646765722d726f6c6c757000000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0013e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe530c73646971742d676f6c64656e0003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f",
+      "error": "unknown sig_mode byte 0"
+    },
+    {
+      "name": "sig_mode 3",
+      "rule": "QSTR-6",
+      "hex": "51535452010f716f7265636861696e2d6469616e61106d792d6c65646765722d726f6c6c757000000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0313e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe530c73646971742d676f6c64656e0003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f",
+      "error": "unknown sig_mode byte 3"
+    },
+    {
+      "name": "chunk_count 0",
+      "rule": "QSTR-7",
+      "hex": "51535452010f716f7265636861696e2d6469616e61106d792d6c65646765722d726f6c6c757000000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0113e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe530c73646971742d676f6c64656e0000863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f",
+      "error": "chunk_count is 0"
+    },
+    {
+      "name": "ends inside manifest_sha256",
+      "rule": "QSTR-8",
+      "hex": "51535452010f716f7265636861696e2d6469616e61106d792d6c65646765722d726f6c6c757000000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0113e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe530c73646971742d676f6c64656e0003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f50",
+      "error": "QSTR ends inside manifest_sha256"
+    },
+    {
+      "name": "one trailing byte",
+      "rule": "QSTR-9",
+      "hex": "51535452010f716f7265636861696e2d6469616e61106d792d6c65646765722d726f6c6c757000000000000000000000000000000003000000000000000eff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f24d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb0113e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe530c73646971742d676f6c64656e0003863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f3181157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f00",
+      "error": "1 trailing bytes"
+    }
+  ],
+  "encode_invalid": [
+    {
+      "name": "batch_index 2^64",
+      "rule": "QSTR-10",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "18446744073709551616",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "error": "does not fit in 64 bits"
+    },
+    {
+      "name": "inbox_end with a leading zero",
+      "rule": "QSTR-10",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "014",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "error": "is not a decimal string"
+    },
+    {
+      "name": "empty prover_id",
+      "rule": "QSTR-11",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "error": "prover_id must be 1 to 255 UTF-8 bytes"
+    },
+    {
+      "name": "prover_id of 256 bytes",
+      "rule": "QSTR-11",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "error": "prover_id must be 1 to 255 UTF-8 bytes"
+    },
+    {
+      "name": "uppercase state_root",
+      "rule": "QSTR-12",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "AB0E41FD94E031C7F6644AB83DE3DB2ACC9F067232C0AAC89119BA77D25945F2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "error": "state_root must be 32 bytes of lowercase hex"
+    },
+    {
+      "name": "chunk_count 0",
+      "rule": "QSTR-13",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 0,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "error": "chunk_count 0 is outside 1..65535"
+    },
+    {
+      "name": "chunk_count 65536",
+      "rule": "QSTR-13",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 65536,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "error": "chunk_count 65536 is outside 1..65535"
+    },
+    {
+      "name": "sig_mode name v1",
+      "rule": "QSTR-14",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "v1",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "error": "unknown sig_mode v1"
+    }
+  ],
+  "match_invalid": [
+    {
+      "name": "state_root differs from the manifest",
+      "rule": "QSTR-15",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "1111111111111111111111111111111111111111111111111111111111111111",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "differs": [
+        "state_root"
+      ]
+    },
+    {
+      "name": "batch_index differs from the manifest",
+      "rule": "QSTR-15",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "1",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "differs": [
+        "batch_index"
+      ]
+    },
+    {
+      "name": "chunk_count differs from the manifest",
+      "rule": "QSTR-15",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 2,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1157992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "differs": [
+        "chunk_count"
+      ]
+    },
+    {
+      "name": "manifest_sha256 names another manifest",
+      "rule": "QSTR-16",
+      "qstr": {
+        "chainId": "qorechain-diana",
+        "rollupId": "my-ledger-rollup",
+        "batchIndex": "0",
+        "inboxFrom": "3",
+        "inboxEnd": "14",
+        "prevStateRoot": "ff51bb4bc870040363b3db566d324c5b4aba906fd0c0511ba6131b4f2a3b4536",
+        "stateRoot": "ab0e41fd94e031c7f6644ab83de3db2acc9f067232c0aac89119ba77d25945f2",
+        "withdrawalsRoot": "4d8b1e1b902735d0604f18180ce6d270441122f043941c500ecc2d4db8f5237b",
+        "dataHash": "5eef7679d93212dbc64de41feb7bea78e7b56b8902849c72aaba721fe5355dfb",
+        "sigMode": "full",
+        "programVkeyHash": "13e9173eba4daa3e3fc7aa03e0cc5f5fca89580d3f1b6c523873a14c44b1fe53",
+        "proverId": "sdiqt-golden",
+        "chunkCount": 3,
+        "proofRoot": "863154c66717158316893bdf91360e7c386472048dd3b1735bc2330c5047f318",
+        "manifestSha256": "1057992f7c5f6086917a035487632773c8b31daaf8abbf7c64d11cb1de4f509f"
+      },
+      "differs": [
+        "manifest_sha256"
+      ]
+    }
+  ],
+  "manifest": "vectors/bundles/golden-v328"
+}
