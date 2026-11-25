@@ -1,0 +1,24 @@
+{
+  "name": "@sdiqt/redteam",
+  "version": "0.1.0",
+  "description": "Red-team cases: each attack runs against the real SDIQT code and must be refused",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "redteam": "node run.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node run.ts --check"
+  },
+  "dependencies": {
+    "@qorechain/qoreseal": "0.1.0",
+    "@qorechain/rdk": "0.9.0",
+    "@sdiqt/operator": "workspace:*",
+    "@sdiqt/protocol": "workspace:*",
+    "@sdiqt/verify": "workspace:*",
+    "@sdiqt/watchtower": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5"
+  }
+}
