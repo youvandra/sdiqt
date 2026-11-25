@@ -141,6 +141,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/verify
     devDependencies:
+      '@noble/post-quantum':
+        specifier: 0.7.1
+        version: 0.7.1
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5
