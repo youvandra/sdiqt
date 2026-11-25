@@ -28,3 +28,5 @@ crates/sdiqt-verify/examples/web/proof/
 
 # host bundle (built on the Mac by apps/watchtower/scripts/bundle.mjs)
 deploy/dist/
+apps/explorer/playwright-report/
+apps/explorer/test-results/

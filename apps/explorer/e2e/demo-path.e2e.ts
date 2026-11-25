@@ -1,0 +1,48 @@
+/**
+ * The demo path a judge follows: open the explorer, open a proven batch,
+ * verify its STARK proof in the browser, then flip one byte and watch the
+ * verifier reject it.
+ */
+import { expect, type Page, test } from "@playwright/test";
+
+interface BatchSummary {
+  batch_index: string;
+  validity: string;
+}
+
+async function latestProven(page: Page): Promise<string> {
+  const res = await page.request.get("/api/batches");
+  expect(res.ok()).toBe(true);
+  const body = (await res.json()) as { batches: BatchSummary[] };
+  const proven = body.batches.filter((b) => b.validity === "proven");
+  expect(proven.length, "at least one proven batch on the deployed tower").toBeGreaterThan(0);
+  return proven.map((b) => b.batch_index).sort((a, b) => Number(b) - Number(a))[0] as string;
+}
+
+test("list, batch, browser verify, flip one byte", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+
+  const index = await latestProven(page);
+
+  await page.goto("/");
+  await expect(page).toHaveTitle("SDIQT Explorer");
+  const list = page.getByRole("list", { name: "Batches" });
+  const row = list.getByRole("button").filter({ hasText: `#${index}` });
+  await expect(row).toBeVisible();
+
+  await row.click();
+  const drawer = page.getByRole("dialog");
+  await expect(drawer.getByRole("heading", { name: `Batch ${index}` })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`[?&]batch=${index}\\b`));
+
+  await drawer.getByRole("button", { name: "Proof", exact: true }).click();
+  await drawer.getByRole("button", { name: "Verify Proof" }).click();
+  await expect(drawer.getByText("Valid", { exact: true })).toBeVisible({ timeout: 90_000 });
+  await expect(drawer.getByText(/All \d+ fields equal/)).toBeVisible();
+
+  await drawer.getByRole("button", { name: "Flip One Byte" }).click();
+  await expect(drawer.getByText(/Tampered copy rejected in/)).toBeVisible({ timeout: 90_000 });
+
+  expect(errors).toEqual([]);
+});
