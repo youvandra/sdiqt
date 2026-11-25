@@ -39,6 +39,9 @@ importers:
       '@sdiqt/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@sdiqt/verify':
+        specifier: workspace:*
+        version: link:../../packages/verify
       lucide-react:
         specifier: 1.74.0
         version: 1.74.0(@types/react@19.3.0)(react@19.3.1)
