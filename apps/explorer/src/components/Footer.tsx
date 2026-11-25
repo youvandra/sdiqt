@@ -21,8 +21,9 @@ export function Footer() {
         <div className="footer-about">
           <Logo />
           <p className="t-small">
-            STARK validity receipts for QoreChain qledger rollups. Every batch is re-executed,
-            proven and signed, and the proof stays checkable after the chain prunes the batch.
+            STARK validity receipts for QoreChain qledger rollups. Every batch of every qledger-v1
+            rollup on diana is re-executed and signed; every sdiqt-1 batch is also proven, and its
+            proof stays checkable after the chain prunes the batch.
           </p>
           <dl className="footer-facts">
             <dt>Chain</dt>

@@ -68,11 +68,11 @@ export function Overview({ rows, health, counts, summary, onOpen, onFilter }: Pr
             <Stat value={num(matched)} label="Re-executed: match" note={share(matched)} />
             <Stat
               value={num(found)}
-              label="Mismatches found"
+              label="Mismatching submissions"
               note={
                 found === 0
                   ? "Every batch gives the chain's roots"
-                  : `${num(voided)} voided by QoreChain`
+                  : `${num(voided)} rejected by QoreChain`
               }
             />
           </>

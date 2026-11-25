@@ -6,7 +6,7 @@ const POINTS = [
   {
     icon: ShieldCheck,
     title: "Hash-based proofs",
-    body: "Each batch is proven with a STARK. Its security rests on hash functions, which hold up against the quantum attacks that break elliptic curves.",
+    body: "Each sdiqt-1 batch is proven with a STARK. Its security rests on hash functions, which hold up against the quantum attacks that break elliptic curves.",
   },
   {
     icon: KeyRound,
@@ -24,6 +24,7 @@ const LIMITS = [
   "The watchtower and your browser verify the STARK off chain. QoreChain settles by its own fraud-proof rules.",
   "Chain data shown here is relayed by sdiqt.xyz. The receipts are signed, so you can check them without trusting the relay.",
   "One prover runs on a single Mac during the testnet event. A slow prover shows up as Unproven, never as a false Proven.",
+  "On other teams' qledger rollups the watchtower re-executes, signs receipts and reports wrong roots. STARK proofs and fraud challenges run on sdiqt-1.",
 ];
 
 export function Security() {
