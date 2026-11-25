@@ -907,6 +907,10 @@ section[id] {
   color: var(--text-placeholder);
   overflow-wrap: anywhere;
 }
+.relay-note {
+  margin-top: 14px;
+  color: var(--text-placeholder);
+}
 .verify-actions {
   display: flex;
   flex-wrap: wrap;

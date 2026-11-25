@@ -186,6 +186,11 @@ export function BrowserVerify({ index, s, claim }: { index: string; s: Submissio
         />
       </ol>
 
+      <p className="t-caption relay-note">
+        Chain data relayed by sdiqt.xyz. Run <span className="t-mono">sdiqt-verify</span> to check
+        against your own node.
+      </p>
+
       {state.step === "error" && (
         <div className="notice" data-tone="bad" role="alert">
           {state.message}
