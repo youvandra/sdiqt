@@ -1,9 +1,11 @@
 import { Link } from "react-router";
+import { SITE, useDocumentTitle } from "../lib/dom.ts";
 import { ISSUES_URL, LICENSE_URL } from "../lib/links.ts";
 
 const UPDATED = "25 November 2026";
 
 function LegalPage({ title, children }: { title: string; children: React.ReactNode }) {
+  useDocumentTitle(`${title} · ${SITE}`);
   return (
     <article className="section legal" aria-labelledby="legal-title">
       <div className="legal-head">

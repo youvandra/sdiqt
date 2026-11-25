@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { api, REFERENCE_ROLLUP, usePolled } from "../lib/api.ts";
+import { SITE, useDocumentTitle } from "../lib/dom.ts";
 import { rollupPath } from "../lib/rollup.ts";
 import { Builders } from "../sections/Builders.tsx";
 import { Hero } from "../sections/Hero.tsx";
@@ -13,6 +14,7 @@ import { Verify } from "../sections/Verify.tsx";
 export function Home() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  useDocumentTitle(`${SITE} Explorer`);
   const health = usePolled(api.health, "health");
   const list = usePolled(api.batches, "batches");
   const rollups = usePolled(api.rollups, "rollups", 30_000);
