@@ -30,6 +30,7 @@ export interface QstrV1 {
   inboxEnd: string;
   prevStateRoot: string;
   stateRoot: string;
+  /** Empty when the batch has no withdrawals, as the chain records it. */
   withdrawalsRoot: string;
   dataHash: string;
   sigMode: QstrSigMode;
@@ -40,6 +41,14 @@ export interface QstrV1 {
   /** SHA-256 of the bundle manifest's canonical (RFC 8785) bytes. */
   manifestSha256: string;
 }
+
+/**
+ * A batch without withdrawals has an empty withdrawals root on chain. QSTR
+ * writes it as 32 zero bytes and reads 32 zero bytes back as empty; no SHA-256
+ * root is all zeros.
+ */
+const EMPTY_ROOT_BYTES = new Uint8Array(32);
+const EMPTY_ROOT_HEX = "00".repeat(32);
 
 export class QstrError extends Error {
   override readonly name = "QstrError";
@@ -109,7 +118,7 @@ export function encodeQstrV1(q: QstrV1): Uint8Array {
     be64(q.inboxEnd, "inbox_end"),
     hash32(q.prevStateRoot, "prev_state_root"),
     hash32(q.stateRoot, "state_root"),
-    hash32(q.withdrawalsRoot, "withdrawals_root"),
+    q.withdrawalsRoot === "" ? EMPTY_ROOT_BYTES : hash32(q.withdrawalsRoot, "withdrawals_root"),
     hash32(q.dataHash, "data_hash"),
     new Uint8Array([sig]),
     hash32(q.programVkeyHash, "program_vkey_hash"),
@@ -141,7 +150,8 @@ export function decodeQstrV1(bytes: Uint8Array): QstrV1 {
   const inboxEnd = r.be64("inbox_end");
   const prevStateRoot = r.hex32("prev_state_root");
   const stateRoot = r.hex32("state_root");
-  const withdrawalsRoot = r.hex32("withdrawals_root");
+  const withdrawalsHex = r.hex32("withdrawals_root");
+  const withdrawalsRoot = withdrawalsHex === EMPTY_ROOT_HEX ? "" : withdrawalsHex;
   const dataHash = r.hex32("data_hash");
   const sigByte = r.u8("sig_mode");
   const sigMode = (Object.keys(QSTR_SIG_MODES) as QstrSigMode[]).find(

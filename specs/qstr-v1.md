@@ -19,7 +19,7 @@ All integers are big-endian. `lp(s)` is one length byte (1 to 255) followed by t
 | inbox_end | 8 | last inbox sequence the batch consumes |
 | prev_state_root | 32 | state root before the batch |
 | state_root | 32 | state root after the batch |
-| withdrawals_root | 32 | withdrawals root of the batch |
+| withdrawals_root | 32 | withdrawals root of the batch; 32 zero bytes when the batch has no withdrawals (the chain records an empty root) |
 | data_hash | 32 | data hash of the batch |
 | sig_mode | 1 | `01` full (ML-DSA-44 checked inside the proof), `02` v0 (one validity bit per transaction as a public input); `00` and other values are invalid |
 | program_vkey_hash | 32 | verifying-key digest of the SP1 program |
