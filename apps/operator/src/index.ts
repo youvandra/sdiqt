@@ -1,4 +1,5 @@
 export * from "./exit-packet.ts";
+export * from "./heartbeat.ts";
 export * from "./operator.ts";
 export * from "./plan.ts";
 export * from "./prove-queue.ts";
