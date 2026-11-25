@@ -126,6 +126,12 @@ export class ProveQueue {
     return this.jobs.filter((j) => j.state === "queued" || j.state === "proving").length;
   }
 
+  /** Whether any job waits, reading the saved queue first (so a restart resumes). */
+  async hasWork(): Promise<boolean> {
+    await this.load();
+    return this.pending() > 0;
+  }
+
   /** Add a chain batch; a batch already queued or done is ignored. */
   async enqueue(b: BatchRecord): Promise<boolean> {
     await this.load();

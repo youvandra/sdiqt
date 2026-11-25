@@ -206,7 +206,7 @@ export class Operator {
       }
     }
 
-    if (this.o.proveQueue && this.o.proveQueue.pending() > 0) void this.o.proveQueue.pump();
+    if (this.o.proveQueue && (await this.o.proveQueue.hasWork())) void this.o.proveQueue.pump();
 
     const every = this.o.heartbeatTicks ?? 0;
     if (every > 0 && this.ticks % every === 0) {

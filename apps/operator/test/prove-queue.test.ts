@@ -176,6 +176,19 @@ describe("prove queue", () => {
     expect(again.list()[0]?.state).toBe("proven");
   });
 
+  it("reports saved queued jobs as work after a restart, before any enqueue", async () => {
+    const runner = fakeRunner();
+    const { dir, q } = await setup(runner);
+    await q.enqueue(batch());
+    const file = join(dir, "queue.json");
+    const again = new ProveQueue({ runner, stateFile: file, workDir: dir, log: () => {} });
+    expect(again.pending()).toBe(0);
+    expect(await again.hasWork()).toBe(true);
+    await again.pump();
+    expect(again.list()[0]?.state).toBe("proven");
+    expect(await again.hasWork()).toBe(false);
+  });
+
   it("finishes the job in progress on stop and starts no other", async () => {
     const runner = fakeRunner();
     const { q } = await setup(runner);
