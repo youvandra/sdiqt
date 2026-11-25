@@ -30,6 +30,14 @@ describe("QSTR v1", () => {
     expect(decodeQstrV1(bytes)).toEqual(q);
   });
 
+  it("writes an empty withdrawals root as 32 zero bytes and reads it back as empty", () => {
+    const empty = { ...q, withdrawalsRoot: "" };
+    const bytes = encodeQstrV1(empty);
+    expect(bytes.length).toBe(fromHex(golden).length);
+    expect(toHex(bytes)).toContain(q.stateRoot + "00".repeat(32) + q.dataHash);
+    expect(decodeQstrV1(bytes)).toEqual(empty);
+  });
+
   it("agrees with the Rust bundle code on proof root and manifest hash", () => {
     expect(proofRoot(manifest.chunks.map((c) => c.proof_sha256))).toBe(manifest.proof_root);
     expect(q.manifestSha256).toBe(manifestSha256(manifest));
