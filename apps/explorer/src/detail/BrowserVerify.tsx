@@ -53,13 +53,21 @@ function chainDiffs(bundle: Bundle, index: string, s: Submission): string[] {
 }
 
 /** Download the batch's STARK bundle and check it with the wasm verifier in this tab. */
-export function BrowserVerify({ index, s, claim }: { index: string; s: Submission; claim: Claim }) {
+export function BrowserVerify({
+  index,
+  s,
+  claim,
+  autoRun = false,
+}: {
+  index: string;
+  s: Submission;
+  claim: Claim;
+  autoRun?: boolean;
+}) {
   const [state, setState] = useState<State>({ step: "idle" });
   const [flip, setFlip] = useState<Flip>({ step: "idle" });
   const ctrl = useRef<AbortController | null>(null);
   const name = bundleName(index, s.submit_tx);
-
-  useEffect(() => () => ctrl.current?.abort(), []);
 
   const run = async () => {
     ctrl.current?.abort();
@@ -96,6 +104,13 @@ export function BrowserVerify({ index, s, claim }: { index: string; s: Submissio
       setState({ step: "error", message: err instanceof Error ? err.message : String(err) });
     }
   };
+
+  // Start at once when opened from "Verify Latest Batch"; abort on unmount.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `run` reads current props
+  useEffect(() => {
+    if (autoRun) void run();
+    return () => ctrl.current?.abort();
+  }, [autoRun]);
 
   const runFlip = async () => {
     if (state.step !== "done") return;

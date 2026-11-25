@@ -1,7 +1,18 @@
 import { Link } from "react-router";
-import { LICENSE_URL, REPO_URL, SPECS_URL } from "../lib/links.ts";
+import {
+  CHAIN_ID,
+  LICENSE_URL,
+  NOBLE_URL,
+  OPERATOR,
+  RDK_DOCS_URL,
+  RDK_URL,
+  REPO_URL,
+  SP1_URL,
+  SPECS_URL,
+} from "../lib/links.ts";
 import { Logo } from "./Logo.tsx";
 import { SECTIONS } from "./Nav.tsx";
+import { Hash } from "./Ui.tsx";
 
 export function Footer() {
   return (
@@ -13,6 +24,16 @@ export function Footer() {
             STARK validity receipts for QoreChain qledger rollups. Every batch is re-executed,
             proven and signed, and the proof stays checkable after the chain prunes the batch.
           </p>
+          <dl className="footer-facts">
+            <dt>Chain</dt>
+            <dd className="t-mono">{CHAIN_ID}</dd>
+            <dt>Rollup</dt>
+            <dd className="t-mono">sdiqt-1</dd>
+            <dt>Operator</dt>
+            <dd>
+              <Hash value={OPERATOR} head={10} tail={6} />
+            </dd>
+          </dl>
         </div>
         <div className="footer-nav">
           <div className="footer-col">
@@ -36,6 +57,15 @@ export function Footer() {
             </a>
           </div>
           <div className="footer-col">
+            <span className="t-small-strong">QoreChain</span>
+            <a className="t-small" href={RDK_DOCS_URL} target="_blank" rel="noreferrer">
+              Rollup Docs
+            </a>
+            <a className="t-small" href={RDK_URL} target="_blank" rel="noreferrer">
+              RDK Source
+            </a>
+          </div>
+          <div className="footer-col">
             <span className="t-small-strong">Legal</span>
             <Link className="t-small" to="/privacy">
               Privacy Policy
@@ -48,7 +78,21 @@ export function Footer() {
       </div>
       <div className="footer-bar">
         <span className="t-small">© 2026 SDIQT. Testnet software on QoreChain diana.</span>
-        <span className="t-small">Built on the QoreChain RDK, SP1 and ML-DSA-87.</span>
+        <span className="t-small">
+          Built on the{" "}
+          <a href={RDK_URL} target="_blank" rel="noreferrer">
+            QoreChain RDK
+          </a>
+          ,{" "}
+          <a href={SP1_URL} target="_blank" rel="noreferrer">
+            SP1
+          </a>{" "}
+          and{" "}
+          <a href={NOBLE_URL} target="_blank" rel="noreferrer">
+            noble ML-DSA
+          </a>
+          .
+        </span>
       </div>
     </footer>
   );
