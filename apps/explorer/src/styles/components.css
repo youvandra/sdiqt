@@ -433,7 +433,7 @@
 }
 .footer-nav {
   display: grid;
-  grid-template-columns: repeat(3, auto);
+  grid-template-columns: repeat(4, auto);
   gap: 64px;
 }
 .footer-col {
@@ -444,6 +444,26 @@
 .footer-col a {
   transition: color var(--hover-duration) var(--ease-out);
 }
+.footer-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 4px 0 0;
+}
+.footer-facts dt {
+  font: 400 13px var(--font-body);
+  color: var(--text-placeholder);
+}
+.footer-facts dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-subtle);
+}
+.footer-bar a {
+  color: var(--text);
+}
+.footer-bar a:hover,
 .footer-col a:hover {
   color: var(--text);
 }

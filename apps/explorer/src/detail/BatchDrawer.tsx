@@ -11,9 +11,18 @@ type Submission = ApiBatchDetailV1["submissions"][number];
 type Tab = "overview" | "proof" | "receipt" | "history";
 
 /** Right-side drawer with everything the tower knows about one batch index. */
-export function BatchDrawer({ index, onClose }: { index: string; onClose: () => void }) {
+export function BatchDrawer({
+  index,
+  onClose,
+  verify = false,
+}: {
+  index: string;
+  onClose: () => void;
+  /** Open on the Proof tab and start the browser check at once. */
+  verify?: boolean;
+}) {
   const detail = usePolled((s) => api.batch(index, s), `batch:${index}`);
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>(verify ? "proof" : "overview");
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -102,7 +111,7 @@ export function BatchDrawer({ index, onClose }: { index: string; onClose: () => 
           )}
           {!current && !detail.error && <p className="t-body">Reading batch {index}</p>}
           {current && tab === "overview" && <OverviewTab s={current} />}
-          {current && tab === "proof" && <ProofTab index={index} s={current} />}
+          {current && tab === "proof" && <ProofTab index={index} s={current} autoVerify={verify} />}
           {current && tab === "receipt" && <ReceiptTab index={index} s={current} />}
           {subs && tab === "history" && <HistoryTab subs={subs} />}
         </div>
@@ -257,7 +266,7 @@ function OverviewTab({ s }: { s: Submission }) {
   );
 }
 
-function ProofTab({ index, s }: { index: string; s: Submission }) {
+function ProofTab({ index, s, autoVerify }: { index: string; s: Submission; autoVerify: boolean }) {
   const c = s.claim;
   if (!c) {
     return (
@@ -302,7 +311,7 @@ function ProofTab({ index, s }: { index: string; s: Submission }) {
           <dd>{s.qstr_tx ? <Hash value={s.qstr_tx} /> : "Not posted"}</dd>
         </dl>
       </Panel>
-      <BrowserVerify index={index} s={s} claim={c} />
+      <BrowserVerify index={index} s={s} claim={c} autoRun={autoVerify} />
       <Panel
         title="Chunks"
         aside={<span className="t-caption">{c.chunks.length} STARK proofs</span>}

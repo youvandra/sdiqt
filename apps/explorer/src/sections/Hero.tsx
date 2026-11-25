@@ -1,7 +1,7 @@
 import type { ApiHealthV1 } from "@sdiqt/protocol";
 import { ArrowDown } from "lucide-react";
 import { Link } from "react-router";
-import { ago, num } from "../lib/format.ts";
+import { ago, num, SETTLEMENT, VALIDITY } from "../lib/format.ts";
 
 /** Live status line under the hero copy: tower, rollup, chain height, last poll. */
 function LiveStatus({
@@ -30,6 +30,16 @@ function LiveStatus({
         <>
           <span className="live-sep" />
           <span>Height {num(health.last_poll_height)}</span>
+        </>
+      )}
+      {health.last_receipt && (
+        <>
+          <span className="live-sep" />
+          <span>
+            Latest batch {health.last_receipt.batch_index}:{" "}
+            {SETTLEMENT[health.last_receipt.settlement].label},{" "}
+            {VALIDITY[health.last_receipt.validity].label}
+          </span>
         </>
       )}
       {health.last_poll_at && (
