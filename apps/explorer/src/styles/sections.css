@@ -644,6 +644,21 @@ section[id] {
 .chunks li:last-child {
   border-bottom: 0;
 }
+.chunks-note {
+  display: block;
+  margin-top: 12px;
+  color: var(--text-placeholder);
+}
+.cmd {
+  margin: 14px 0 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  border-radius: var(--radius-option);
+  border: 1px solid var(--border);
+  background: var(--base);
+  font: 400 12px / 1.6 var(--font-mono);
+  color: var(--text);
+}
 .chunk-index {
   color: var(--fill);
 }
