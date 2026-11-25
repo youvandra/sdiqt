@@ -49,13 +49,23 @@
       "tx": "3915E5C4AD3EF15674FD00E3E170342B101CC5B074453159F6B49C59733677EB",
       "action": "/qorechain.pqc.v1.MsgRegisterPQCKeyV2",
       "signer": "demo_user"
+    },
+    {
+      "id": "withdrawal-posted",
+      "claim": "Demo user posted a signed qledger withdrawal of 2 QOR from L2-A to its L1 address (batch 3, proven by STARK)",
+      "tx": "18EE89B670D2ABFD17B4887F420C030047552DFFF4475CC83595000629C68764",
+      "action": "/qorechain.rdk.v1.MsgPostRollupData",
+      "signer": "demo_user"
+    },
+    {
+      "id": "withdrawal-executed",
+      "claim": "After batch 3 was final, MsgExecuteWithdrawal paid 2 QOR to the demo user with the withdrawal's Merkle path",
+      "tx": "D4E2A450F041A503B15C6B971C37ABF119F61F3C32DF9D1457FFF6C17D954619",
+      "action": "/qorechain.rdk.v1.MsgExecuteWithdrawal",
+      "signer": "demo_user"
     }
   ],
   "open": [
-    {
-      "requirement": "Withdrawal",
-      "plan": "qledger withdrawal posted, batch proven and final, MsgExecuteWithdrawal pays the L1 recipient"
-    },
     {
       "requirement": "Watchtower challenge",
       "plan": "staged wrong-root batch challenged by the watchtower, bond slashed, receipt VOID"
