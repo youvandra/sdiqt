@@ -1,5 +1,6 @@
 /**
- * The demo path a judge follows: open the explorer, open a proven batch,
+ * The demo path a judge follows: open the explorer, pick the reference rollup
+ * from the list of every qledger rollup, open a proven batch,
  * verify its STARK proof in the browser, then flip one byte and watch the
  * verifier reject it.
  */
@@ -27,6 +28,11 @@ test("list, batch, browser verify, flip one byte", async ({ page }) => {
 
   await page.goto("/");
   await expect(page).toHaveTitle("SDIQT Explorer");
+  const rollups = page.getByRole("list", { name: "Rollups" });
+  await expect(rollups.getByRole("link")).not.toHaveCount(0);
+  await rollups.getByRole("link").filter({ hasText: "sdiqt-1" }).click();
+  await expect(page).toHaveURL(/\/r\/sdiqt-1$/);
+
   const list = page.getByRole("list", { name: "Batches" });
   const row = list.getByRole("button").filter({ hasText: `#${index}` });
   await expect(row).toBeVisible();
@@ -45,4 +51,16 @@ test("list, batch, browser verify, flip one byte", async ({ page }) => {
   await expect(drawer.getByText(/Tampered copy rejected in/)).toBeVisible({ timeout: 90_000 });
 
   expect(errors).toEqual([]);
+});
+
+test("an other team's rollup shows re-execution only", async ({ page }) => {
+  const res = await page.request.get("/api/rollups");
+  expect(res.ok()).toBe(true);
+  const body = (await res.json()) as { rollups: Array<{ rollup_id: string; tier: string }> };
+  const id = body.rollups.find((r) => r.tier === "reexec")?.rollup_id;
+  if (!id) throw new Error("no re-execution-only rollup on the deployed tower");
+  await page.goto(`/r/${id}`);
+  await expect(page.getByRole("heading", { name: id, exact: true })).toBeVisible();
+  await expect(page.getByText("Proven by a STARK")).toHaveCount(0);
+  await expect(page.getByText("Re-executed: match")).toBeVisible();
 });

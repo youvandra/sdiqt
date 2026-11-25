@@ -1,8 +1,9 @@
-import type { ApiHealthV1, CountsV1 } from "@sdiqt/protocol";
+import type { ApiHealthV1, ApiRollupSummaryV1, CountsV1 } from "@sdiqt/protocol";
 import { Hourglass } from "lucide-react";
 import { SectionHead } from "../components/Ui.tsx";
 import type { Filter } from "../lib/filters.ts";
 import {
+  axis,
   type BatchRow,
   duration,
   entryCount,
@@ -10,10 +11,9 @@ import {
   SETTLEMENT,
   SETTLEMENT_ORDER,
   type Settlement,
-  VALIDITY,
-  VALIDITY_ORDER,
   type Validity,
 } from "../lib/format.ts";
+import { useRollup } from "../lib/rollup.ts";
 import { useNow } from "../lib/useNow.ts";
 
 interface Props {
@@ -21,14 +21,27 @@ interface Props {
   health: ApiHealthV1 | undefined;
   /** PROOF.md numbers at one chain height; null when not deployed. */
   counts: CountsV1 | null;
+  /** This rollup's row of /api/rollups: counts replaced submissions too. */
+  summary?: ApiRollupSummaryV1 | undefined;
   onOpen: (index: string) => void;
   onFilter: (f: Partial<Filter>) => void;
 }
 
-export function Overview({ rows, health, counts, onOpen, onFilter }: Props) {
+export function Overview({ rows, health, counts, summary, onOpen, onFilter }: Props) {
+  const { tier } = useRollup();
   const total = rows.length;
   const final = rows.filter((r) => r.settlement === "final").length;
   const proven = rows.filter((r) => r.validity === "proven").length;
+  const matched = rows.filter((r) => r.judged === "match").length;
+  // Replaced submissions are gone from `rows`; the summary still counts them.
+  const found = summary
+    ? Number(summary.mismatches_total)
+    : rows.filter((r) => r.judged === "mismatch").length;
+  const voided = summary
+    ? Number(summary.mismatches_rejected)
+    : rows.filter((r) => r.judged === "mismatch" && r.settlement === "rejected").length;
+  const share = (n: number) =>
+    total ? `${Math.round((n / total) * 100)}% of batches` : "No batches yet";
   const rolledBack = rows.reduce((n, r) => n + Number(r.submissions) - 1, 0);
   const entriesTotal = rows.reduce((n, r) => n + entryCount(r.inbox_from, r.inbox_end), 0);
 
@@ -36,8 +49,9 @@ export function Overview({ rows, health, counts, onOpen, onFilter }: Props) {
     <section className="section overview" id="overview" aria-labelledby="overview-title">
       <div className="streak" aria-hidden="true" />
       <SectionHead eyebrow="Live" title="The rollup at a glance." id="overview-title">
-        Two independent answers for every batch: QoreChain says whether it settled, the STARK says
-        whether it was executed correctly.
+        {tier === "stark"
+          ? "Two independent answers for every batch: QoreChain says whether it settled, the STARK says whether it was executed correctly."
+          : "Two answers for every batch: QoreChain says whether it settled, and SDIQT re-executes it from the public inbox to check the roots. Proofs run on sdiqt-1, the reference rollup."}
       </SectionHead>
 
       <div className="card stats-card">
@@ -46,17 +60,24 @@ export function Overview({ rows, health, counts, onOpen, onFilter }: Props) {
           label="Batches tracked"
           note={`${num(entriesTotal)} inbox entries`}
         />
-        <Stat
-          value={num(final)}
-          label="Final on QoreChain"
-          note={total ? `${Math.round((final / total) * 100)}% of batches` : "No batches yet"}
-        />
-        <Stat
-          value={num(proven)}
-          label="Proven by a STARK"
-          note={total ? `${Math.round((proven / total) * 100)}% of batches` : "No batches yet"}
-        />
-        {counts?.proof_latency_s.median != null && (
+        <Stat value={num(final)} label="Final on QoreChain" note={share(final)} />
+        {tier === "stark" ? (
+          <Stat value={num(proven)} label="Proven by a STARK" note={share(proven)} />
+        ) : (
+          <>
+            <Stat value={num(matched)} label="Re-executed: match" note={share(matched)} />
+            <Stat
+              value={num(found)}
+              label="Mismatches found"
+              note={
+                found === 0
+                  ? "Every batch gives the chain's roots"
+                  : `${num(voided)} voided by QoreChain`
+              }
+            />
+          </>
+        )}
+        {tier === "stark" && counts?.proof_latency_s.median != null && (
           <Stat
             value={minutes(counts.proof_latency_s.median)}
             label="Median proof time"
@@ -85,7 +106,7 @@ function minutes(s: number): string {
   return s < 120 ? `${s} s` : `${Math.round(s / 60)} min`;
 }
 
-function Stat({ value, label, note }: { value: string; label: string; note: string }) {
+export function Stat({ value, label, note }: { value: string; label: string; note: string }) {
   return (
     <div className="stat">
       <span className="stat-value">{value}</span>
@@ -97,6 +118,8 @@ function Stat({ value, label, note }: { value: string; label: string; note: stri
 
 /** Every batch in index order: top half settlement, bottom half validity. */
 function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => void }) {
+  const { tier } = useRollup();
+  const ax = axis(tier);
   const shown = rows.slice(-160);
   return (
     <div className="card card-pad ribbon-card">
@@ -114,7 +137,7 @@ function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => voi
         <div className="ribbon">
           {shown.map((r) => {
             const s = SETTLEMENT[r.settlement];
-            const v = VALIDITY[r.validity];
+            const v = ax.of(r.validity);
             return (
               <button
                 key={`${r.batch_index}:${r.submit_tx}`}
@@ -136,17 +159,21 @@ function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => voi
           <span className="legend-swatch legend-top" /> Settlement
         </span>
         <span className="legend-group">
-          <span className="legend-swatch legend-bottom" /> Validity
+          <span className="legend-swatch legend-bottom" /> {ax.name}
         </span>
         <span className="legend-group">
-          <span className="dot" data-tone="ok" /> Final / Proven
+          <span className="dot" data-tone="ok" />{" "}
+          {tier === "stark" ? "Final / Proven" : "Final / Match"}
         </span>
         <span className="legend-group">
-          <span className="dot" data-tone="wait" /> Pending / Proving
+          <span className="dot" data-tone="wait" />{" "}
+          {tier === "stark" ? "Pending / Proving" : "Pending"}
         </span>
-        <span className="legend-group">
-          <span className="dot" data-tone="accent" /> Unproven
-        </span>
+        {tier === "stark" && (
+          <span className="legend-group">
+            <span className="dot" data-tone="accent" /> Unproven
+          </span>
+        )}
         <span className="legend-group">
           <span className="dot" data-tone="bad" /> Void / Mismatch
         </span>
@@ -157,12 +184,10 @@ function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => voi
 
 /** Settlement x validity: how many batches sit in each pair of states. */
 function Matrix({ rows, onFilter }: { rows: BatchRow[]; onFilter: (f: Partial<Filter>) => void }) {
+  const ax = axis(useRollup().tier);
   const count = (s: Settlement, v: Validity) =>
     rows.filter((r) => r.settlement === s && r.validity === v).length;
-  const max = Math.max(
-    1,
-    ...SETTLEMENT_ORDER.flatMap((s) => VALIDITY_ORDER.map((v) => count(s, v))),
-  );
+  const max = Math.max(1, ...SETTLEMENT_ORDER.flatMap((s) => ax.order.map((v) => count(s, v))));
   const settlements = SETTLEMENT_ORDER.filter(
     (s) => s !== "unknown" || rows.some((r) => r.settlement === s),
   );
@@ -174,16 +199,16 @@ function Matrix({ rows, onFilter }: { rows: BatchRow[]; onFilter: (f: Partial<Fi
       </div>
       <div
         className="matrix"
-        style={{ gridTemplateColumns: `auto repeat(${VALIDITY_ORDER.length}, 1fr)` }}
+        style={{ gridTemplateColumns: `auto repeat(${ax.order.length}, 1fr)` }}
       >
         <span />
-        {VALIDITY_ORDER.map((v) => (
+        {ax.order.map((v) => (
           <span key={v} className="matrix-col t-caption">
-            {VALIDITY[v].label}
+            {ax.of(v).label}
           </span>
         ))}
         {settlements.map((s) => (
-          <MatrixRow key={s} s={s} count={count} max={max} onFilter={onFilter} />
+          <MatrixRow key={s} s={s} ax={ax} count={count} max={max} onFilter={onFilter} />
         ))}
       </div>
     </div>
@@ -192,6 +217,7 @@ function Matrix({ rows, onFilter }: { rows: BatchRow[]; onFilter: (f: Partial<Fi
 
 function MatrixRow(p: {
   s: Settlement;
+  ax: ReturnType<typeof axis>;
   count: (s: Settlement, v: Validity) => number;
   max: number;
   onFilter: (f: Partial<Filter>) => void;
@@ -199,7 +225,7 @@ function MatrixRow(p: {
   return (
     <>
       <span className="matrix-row t-small">{SETTLEMENT[p.s].label}</span>
-      {VALIDITY_ORDER.map((v) => {
+      {p.ax.order.map((v) => {
         const n = p.count(p.s, v);
         return (
           <button
@@ -209,7 +235,7 @@ function MatrixRow(p: {
             data-empty={n === 0}
             style={{ "--share": n / p.max } as React.CSSProperties}
             onClick={() => p.onFilter({ settlement: p.s, validity: v, query: "" })}
-            aria-label={`${n} batches ${SETTLEMENT[p.s].label} and ${VALIDITY[v].label}`}
+            aria-label={`${n} batches ${SETTLEMENT[p.s].label} and ${p.ax.of(v).label}`}
           >
             {n}
           </button>

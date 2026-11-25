@@ -6,8 +6,7 @@ import { GitHubMark } from "./Icons.tsx";
 import { Logo } from "./Logo.tsx";
 
 export const SECTIONS = [
-  { id: "overview", label: "Overview" },
-  { id: "batches", label: "Batches" },
+  { id: "rollups", label: "Rollups" },
   { id: "how-it-works", label: "How It Works" },
   { id: "verify", label: "Verify" },
   { id: "security", label: "Security" },

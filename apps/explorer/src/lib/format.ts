@@ -47,6 +47,29 @@ export const VALIDITY: Record<Validity, { label: string; tone: Tone; hint: strin
 export const SETTLEMENT_ORDER: Settlement[] = ["pending", "final", "rejected", "unknown"];
 export const VALIDITY_ORDER: Validity[] = ["proving", "proven", "mismatch", "unproven"];
 
+/**
+ * The second axis of a batch. With proofs it is the STARK validity; for a
+ * rollup SDIQT only re-executes it is the re-execution verdict, which a
+ * watch-only tower stores as `unproven` (match) or `mismatch`.
+ */
+const REEXEC: Partial<Record<Validity, { label: string; tone: Tone; hint: string }>> = {
+  unproven: {
+    label: "Match",
+    tone: "ok",
+    hint: "Re-execution from the public inbox gives the chain's roots",
+  },
+  mismatch: VALIDITY.mismatch,
+};
+
+export function axis(tier: "stark" | "reexec") {
+  const order: Validity[] = tier === "stark" ? VALIDITY_ORDER : ["unproven", "mismatch"];
+  return {
+    name: tier === "stark" ? "Proof" : "Re-execution",
+    order,
+    of: (v: Validity) => (tier === "stark" ? VALIDITY[v] : (REEXEC[v] ?? VALIDITY[v])),
+  };
+}
+
 const nf = new Intl.NumberFormat("en-US");
 /** 10700123 -> "10,700,123"; accepts decimal strings. */
 export const num = (v: string | number | bigint) =>

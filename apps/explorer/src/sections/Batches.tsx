@@ -5,15 +5,15 @@ import { type Filter, matches, NO_FILTER } from "../lib/filters.ts";
 import {
   absolute,
   ago,
+  axis,
   type BatchRow,
   entries,
   num,
   SETTLEMENT,
   SETTLEMENT_ORDER,
   shortHash,
-  VALIDITY,
-  VALIDITY_ORDER,
 } from "../lib/format.ts";
+import { useRollup } from "../lib/rollup.ts";
 
 const PAGE = 25;
 
@@ -27,6 +27,8 @@ interface Props {
 }
 
 export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Props) {
+  const { tier } = useRollup();
+  const ax = axis(tier);
   const [limit, setLimit] = useState(PAGE);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new filter starts at the first page
   useEffect(() => setLimit(PAGE), [filter.settlement, filter.validity, filter.query]);
@@ -38,8 +40,9 @@ export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Pro
   return (
     <section className="section" id="batches" aria-labelledby="batches-title">
       <SectionHead eyebrow="Batches" title="Every batch, checked twice." id="batches-title">
-        Newest first. Open a batch to compare its chain roots with the re-execution and the proof
-        claim, and to read its signed receipts.
+        {tier === "stark"
+          ? "Newest first. Open a batch to compare its chain roots with the re-execution and the proof claim, and to read its signed receipts."
+          : "Newest first. Open a batch to compare its chain roots with the re-execution and to read its signed receipts."}
       </SectionHead>
 
       <div className="toolbar">
@@ -57,16 +60,18 @@ export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Pro
           ]}
         />
         <Segmented
-          label="Proof"
+          label={ax.name}
           value={filter.validity}
           onChange={(v) => setFilter({ validity: v })}
           options={[
-            { value: "all", label: "Any Proof" },
-            ...VALIDITY_ORDER.filter((v) => rows.some((r) => r.validity === v)).map((v) => ({
-              value: v,
-              label: VALIDITY[v].label,
-              count: rows.filter((r) => r.validity === v).length,
-            })),
+            { value: "all", label: tier === "stark" ? "Any Proof" : "Any Result" },
+            ...ax.order
+              .filter((v) => rows.some((r) => r.validity === v))
+              .map((v) => ({
+                value: v,
+                label: ax.of(v).label,
+                count: rows.filter((r) => r.validity === v).length,
+              })),
           ]}
         />
         <label className="search">
@@ -81,13 +86,19 @@ export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Pro
         </label>
       </div>
 
-      <div className="btable">
+      <div className="btable" data-tier={tier}>
         <div className="btable-head" aria-hidden="true">
           <span>Batch</span>
           <span>Inbox</span>
           <span>Submitted</span>
-          <span className="c-center">Re-execution</span>
-          <span>Proof</span>
+          {tier === "stark" ? (
+            <>
+              <span className="c-center">Re-execution</span>
+              <span>Proof</span>
+            </>
+          ) : (
+            <span>Re-execution</span>
+          )}
           <span>Settlement</span>
           <span aria-hidden="true" />
         </div>
@@ -118,7 +129,7 @@ export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Pro
         <ul className="btable-list" aria-label="Batches">
           {shown.slice(0, limit).map((r) => (
             <li key={`${r.batch_index}:${r.submit_tx}`}>
-              <Row r={r} onOpen={onOpen} />
+              <Row r={r} onOpen={onOpen} stark={tier === "stark"} />
             </li>
           ))}
         </ul>
@@ -148,9 +159,9 @@ export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Pro
   );
 }
 
-function Row({ r, onOpen }: { r: BatchRow; onOpen: (i: string) => void }) {
+function Row({ r, onOpen, stark }: { r: BatchRow; onOpen: (i: string) => void; stark: boolean }) {
   const s = SETTLEMENT[r.settlement];
-  const v = VALIDITY[r.validity];
+  const v = axis(stark ? "stark" : "reexec").of(r.validity);
   const match = r.judged === "match";
   return (
     <button type="button" className="btable-row" onClick={() => onOpen(r.batch_index)}>
@@ -166,16 +177,18 @@ function Row({ r, onOpen }: { r: BatchRow; onOpen: (i: string) => void }) {
         {r.submitted_time ? ago(r.submitted_time) : "Unknown"}
         <span className="c-sub">Height {num(r.submit_height)}</span>
       </span>
-      <span
-        className="c-center"
-        title={match ? "Same roots as the chain" : "Roots differ from the chain"}
-      >
-        {match ? (
-          <Check size={20} aria-label="Match" />
-        ) : (
-          <X size={20} aria-label="Mismatch" className="c-bad" />
-        )}
-      </span>
+      {stark && (
+        <span
+          className="c-center"
+          title={match ? "Same roots as the chain" : "Roots differ from the chain"}
+        >
+          {match ? (
+            <Check size={20} aria-label="Match" />
+          ) : (
+            <X size={20} aria-label="Mismatch" className="c-bad" />
+          )}
+        </span>
+      )}
       <span>
         <Badge tone={v.tone} title={v.hint}>
           {v.label}
