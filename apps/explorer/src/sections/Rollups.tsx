@@ -121,6 +121,7 @@ function Row({ r }: { r: ApiRollupSummaryV1 }) {
         {!first && batches > 0 && <span className="c-sub">{num(r.match)} batches</span>}
       </span>
       <span className="t-small">
+        <span className="m-only c-sub">Last mismatch</span>
         {r.last_mismatch ? (
           <>
             Batch {r.last_mismatch.batch_index}
@@ -133,6 +134,7 @@ function Row({ r }: { r: ApiRollupSummaryV1 }) {
         )}
       </span>
       <span className="t-small">
+        <span className="m-only c-sub">Last active</span>
         {r.last_submitted_time ? ago(r.last_submitted_time) : "No batches yet"}
         {Number(r.submissions_24h) > 0 && (
           <span className="c-sub">{num(r.submissions_24h)} in 24 h</span>
