@@ -127,7 +127,7 @@ function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => voi
         <span className="card-title">Batch ribbon</span>
         <span className="t-caption">
           {rows.length > shown.length
-            ? `Latest ${shown.length} of ${rows.length}`
+            ? `Latest ${num(shown.length)} of ${num(rows.length)}`
             : `${rows.length} batches`}
         </span>
       </div>
