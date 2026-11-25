@@ -99,3 +99,42 @@ export const SignedReceiptV1 = z.strictObject({
   signature: HexString,
 });
 export type SignedReceiptV1 = z.infer<typeof SignedReceiptV1>;
+
+/** `docs/counts.json`: the numbers `scripts/proof.mjs` recomputes from chain at one height. */
+const LatencyS = z.number().int().nonnegative().nullable();
+export const CountsV1 = z.strictObject({
+  version: z.literal(1),
+  chain_id: z.string().min(1),
+  rollup_id: z.string().min(1),
+  snapshot_height: DecimalString,
+  snapshot_time: z.iso.datetime(),
+  challenge_window_s: z.number().int().positive(),
+  batches: z.number().int().nonnegative(),
+  batches_live: z.number().int().nonnegative(),
+  batches_proven: z.number().int().nonnegative(),
+  batches_final: z.number().int().nonnegative(),
+  batches_pending: z.number().int().nonnegative(),
+  batches_rejected: z.number().int().nonnegative(),
+  batches_unproven: z.number().int().nonnegative(),
+  batches_mismatch: z.number().int().nonnegative(),
+  qstr_posts: z.number().int().nonnegative(),
+  user_entries: z.number().int().nonnegative(),
+  deposits: z.number().int().nonnegative(),
+  transfers: z.number().int().nonnegative(),
+  withdrawals: z.number().int().nonnegative(),
+  proof_latency_s: z.strictObject({
+    median: LatencyS,
+    max: LatencyS,
+    max_small_batches: LatencyS,
+  }),
+  latest_batch: z
+    .strictObject({
+      index: DecimalString,
+      settlement: Settlement,
+      validity: Validity,
+    })
+    .nullable(),
+  claims_checked: z.number().int().nonnegative(),
+  claims_ok: z.number().int().nonnegative(),
+});
+export type CountsV1 = z.infer<typeof CountsV1>;

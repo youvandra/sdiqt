@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "chain_id": "qorechain-diana",
+  "rollup_id": "sdiqt-1",
+  "snapshot_height": "10724608",
+  "snapshot_time": "2026-11-25T11:14:12.000Z",
+  "challenge_window_s": 3600,
+  "batches": 3,
+  "batches_live": 3,
+  "batches_proven": 3,
+  "batches_final": 3,
+  "batches_pending": 0,
+  "batches_rejected": 0,
+  "batches_unproven": 0,
+  "batches_mismatch": 0,
+  "qstr_posts": 3,
+  "user_entries": 4,
+  "deposits": 2,
+  "transfers": 2,
+  "withdrawals": 0,
+  "proof_latency_s": {
+    "median": 1063,
+    "max": 1129,
+    "max_small_batches": 1129
+  },
+  "latest_batch": {
+    "index": "2",
+    "settlement": "final",
+    "validity": "proven"
+  },
+  "claims_checked": 6,
+  "claims_ok": 6
+}

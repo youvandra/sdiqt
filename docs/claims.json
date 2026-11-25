@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "rollup_id": "sdiqt-1",
+  "accounts": {
+    "operator": "qor17fhcxn83a0l9lqs8dmyesp5xeqdxsphu0j87x3",
+    "watchtower": "qor1uelq3hzhnt6q6g7qts2uhscwct6l87yu48zczh",
+    "demo_user": "qor1lk7fdflxvyxes9tudqzgkm65uss2pf5ehh6q63",
+    "fest": "qor1al5y6d68tcxnfvfnejpfaxfuy7cdyqrs9gyavc"
+  },
+  "claims": [
+    {
+      "id": "rollup-created",
+      "claim": "Rollup sdiqt-1 created by the operator: nft profile, based sequencing, qledger-v1 execution, 10,000 QOR stake",
+      "tx": "D2AA84384D630F6EF8EB7A831EE03F017AFD48CD91EF4CB5FBDD3F462C9138EC",
+      "action": "/qorechain.rdk.v1.MsgCreateRollup",
+      "signer": "operator"
+    },
+    {
+      "id": "submitter-bonded",
+      "claim": "Operator bonded 1,000 QOR as the sdiqt-1 batch submitter",
+      "tx": "D389123550A7FB4069F281D51D1AEBAE64D0DCF73DDC8C90C1DB7160BADE44E8",
+      "action": "/qorechain.rdk.v1.MsgBondRollupSubmitter",
+      "signer": "operator"
+    },
+    {
+      "id": "operator-ml-dsa",
+      "claim": "Operator registered its ML-DSA-87 key; every operator tx is hybrid signed",
+      "tx": "4FAC740699B2B8CDDE37C9A4024E763BC9E873631E1F5A05B46A051BB5F15C4B",
+      "action": "/qorechain.pqc.v1.MsgRegisterPQCKeyV2",
+      "signer": "operator"
+    },
+    {
+      "id": "watchtower-ml-dsa",
+      "claim": "Watchtower registered the ML-DSA-87 key that signs settlement receipts",
+      "tx": "BDA2DF6F30EC06A5F64749DF0EF169FDF7141FD40BB1876CE61578012ABD1881",
+      "action": "/qorechain.pqc.v1.MsgRegisterPQCKeyV2",
+      "signer": "watchtower"
+    },
+    {
+      "id": "watchtower-ml-kem",
+      "claim": "Watchtower registered an ML-KEM-1024 key, the recipient of sealed exit packets",
+      "tx": "6FB680F120DA969016EC1CC9BA69E64948C26BC0E5E70C1496D2E4748641D322",
+      "action": "/qorechain.pqc.v1.MsgRegisterKEMKey",
+      "signer": "watchtower"
+    },
+    {
+      "id": "demo-user-ml-dsa",
+      "claim": "Demo user registered its ML-DSA-87 key before depositing",
+      "tx": "3915E5C4AD3EF15674FD00E3E170342B101CC5B074453159F6B49C59733677EB",
+      "action": "/qorechain.pqc.v1.MsgRegisterPQCKeyV2",
+      "signer": "demo_user"
+    }
+  ],
+  "open": [
+    {
+      "requirement": "Withdrawal",
+      "plan": "qledger withdrawal posted, batch proven and final, MsgExecuteWithdrawal pays the L1 recipient"
+    },
+    {
+      "requirement": "Watchtower challenge",
+      "plan": "staged wrong-root batch challenged by the watchtower, bond slashed, receipt VOID"
+    },
+    {
+      "requirement": "ML-KEM exit packet",
+      "plan": "an offline user's sealed withdrawal opened by the watchtower at its release height and posted to the inbox"
+    }
+  ]
+}

@@ -15,6 +15,7 @@ import { Verify } from "../sections/Verify.tsx";
 export function Home() {
   const health = usePolled(api.health, "health");
   const list = usePolled(api.batches, "batches");
+  const counts = usePolled(api.counts, "counts");
   const rows = list.data?.batches ?? [];
   const [filter, setFilterState] = useState<Filter>(NO_FILTER);
   const [params, setParams] = useSearchParams();
@@ -71,7 +72,13 @@ export function Home() {
   return (
     <>
       <Hero health={health.data} error={health.error} />
-      <Overview rows={rows} health={health.data} onOpen={onOpen} onFilter={filterAndShow} />
+      <Overview
+        rows={rows}
+        counts={counts.data ?? null}
+        health={health.data}
+        onOpen={onOpen}
+        onFilter={filterAndShow}
+      />
       <Batches
         rows={rows}
         loading={list.loading}

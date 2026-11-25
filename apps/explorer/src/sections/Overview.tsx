@@ -1,4 +1,4 @@
-import type { ApiHealthV1 } from "@sdiqt/protocol";
+import type { ApiHealthV1, CountsV1 } from "@sdiqt/protocol";
 import { Hourglass } from "lucide-react";
 import { SectionHead } from "../components/Ui.tsx";
 import type { Filter } from "../lib/filters.ts";
@@ -19,11 +19,13 @@ import { useNow } from "../lib/useNow.ts";
 interface Props {
   rows: BatchRow[];
   health: ApiHealthV1 | undefined;
+  /** PROOF.md numbers at one chain height; null when not deployed. */
+  counts: CountsV1 | null;
   onOpen: (index: string) => void;
   onFilter: (f: Partial<Filter>) => void;
 }
 
-export function Overview({ rows, health, onOpen, onFilter }: Props) {
+export function Overview({ rows, health, counts, onOpen, onFilter }: Props) {
   const total = rows.length;
   const final = rows.filter((r) => r.settlement === "final").length;
   const proven = rows.filter((r) => r.validity === "proven").length;
@@ -54,6 +56,13 @@ export function Overview({ rows, health, onOpen, onFilter }: Props) {
           label="Proven by a STARK"
           note={total ? `${Math.round((proven / total) * 100)}% of batches` : "No batches yet"}
         />
+        {counts?.proof_latency_s.median != null && (
+          <Stat
+            value={minutes(counts.proof_latency_s.median)}
+            label="Median proof time"
+            note={`${duration(counts.proof_latency_s.median)} from submit to QSTR post (PROOF.md)`}
+          />
+        )}
         <Stat
           value={num(rolledBack)}
           label="Submissions rolled back"
@@ -69,6 +78,11 @@ export function Overview({ rows, health, onOpen, onFilter }: Props) {
       <PendingWindows rows={rows} health={health} onOpen={onOpen} />
     </section>
   );
+}
+
+/** Whole minutes for the big number; the note carries the exact time. */
+function minutes(s: number): string {
+  return s < 120 ? `${s} s` : `${Math.round(s / 60)} min`;
 }
 
 function Stat({ value, label, note }: { value: string; label: string; note: string }) {
