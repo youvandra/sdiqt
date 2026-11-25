@@ -425,6 +425,7 @@ export class Tower {
     store.setPoll(rollupId, {
       at: this.nowDate().toISOString(),
       height: tip.toString(),
+      window_s: String(windowSec),
     });
     return { batches: batches.length, receipts: issued };
   }

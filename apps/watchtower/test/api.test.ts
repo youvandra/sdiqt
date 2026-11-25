@@ -54,12 +54,14 @@ describe("watchtower API contract", () => {
     const health = ApiHealthV1.parse(h.json);
     expect(health).toMatchObject({ status: "ok", lag_s: "30", last_poll_height: "10686595" });
     expect(health.last_receipt).not.toBeNull();
+    expect(health.challenge_window_s).toBe("3600");
 
     const list = ApiBatchListV1.parse((await get("/api/batches")).json);
     // 9 submissions over 7 indexes: two indexes were rolled back and resubmitted.
     expect(list.batches.map((b) => b.batch_index)).toEqual(["0", "1", "2", "3", "4", "5", "6"]);
     expect(list.batches.filter((b) => b.submissions === "2")).toHaveLength(2);
     expect(list.batches.every((b) => b.judged === "match")).toBe(true);
+    expect(list.batches.every((b) => b.submitted_time !== null)).toBe(true);
 
     for (const b of list.batches) {
       const d = await get(`/api/batches/${b.batch_index}`);

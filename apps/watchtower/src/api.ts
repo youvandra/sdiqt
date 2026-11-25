@@ -78,6 +78,7 @@ export function health(o: ApiOptions): { status: number; body: ApiHealthV1 } {
     last_poll_height: poll?.height ?? null,
     lag_s: lag === null ? null : lag.toString(),
     max_lag_s: maxLag.toString(),
+    challenge_window_s: poll?.window_s ?? null,
     batches: String(o.store.list(o.rollupId).length),
     last_receipt: last
       ? {
@@ -111,6 +112,7 @@ export function batchList(o: ApiOptions): ApiBatchListV1 {
         validity: row.validity,
         proven: row.validity === "proven",
         submissions: String(count),
+        submitted_time: row.submitted_time === null ? null : iso(row.submitted_time),
       };
     }),
   });
