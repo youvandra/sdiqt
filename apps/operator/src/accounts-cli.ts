@@ -4,8 +4,8 @@
  * command only simulates. With --send it needs SDIQT_LIVE=yes and refuses any
  * spend above --cap-qor.
  */
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 import { executeWithdrawalMsg } from "@qorechain/rdk";
@@ -30,6 +30,8 @@ import {
   writeNewMnemonic,
 } from "./accounts.ts";
 import { exitCancel, sealExitPacket } from "./exit-packet.ts";
+import { type HeartbeatAccount, runHeartbeat } from "./heartbeat.ts";
+import { InboxReplay } from "./replay.ts";
 import { withdrawalClaims } from "./withdraw.ts";
 
 const USAGE = `sdiqt-accounts <new|show|send|register|register-kem|create-rollup|bond> [options]
@@ -52,6 +54,10 @@ const USAGE = `sdiqt-accounts <new|show|send|register|register-kem|create-rollup
                  proof rebuilt from --archive; sent by --mnemonic-file
   cancel-exit    sign a cancel of every exit packet of --l2-key up to --seq; writes --out,
                  and with --send delivers it to --tower-url
+  heartbeat      every --interval seconds post one --uqor transfer between --l2-key and
+                 --to-key, alternating direction, nonce read from the --archive replay;
+                 posted by --mnemonic-file; stops at --max-ticks, --cap-qor total fees,
+                 or when --stop-file exists
 
   --mnemonic-file <f>  account mnemonic
   --unified            show: derive the unified (eth_secp256k1) address
@@ -73,8 +79,13 @@ const USAGE = `sdiqt-accounts <new|show|send|register|register-kem|create-rollup
   --tower-url <url>    tower base URL, e.g. https://sdiqt.xyz
   --batch <n>          withdraw-exec: batch index holding the withdrawal
   --archive <dir>      withdraw-exec: archive root, default data/archive
+  --interval <s>       heartbeat: seconds between posts, default 1800
+  --max-ticks <n>      heartbeat: posts in this run, default 1
+  --max-wait <s>       heartbeat: stop when the last post is not archived after this, default 600
+  --stop-file <f>      heartbeat: stop when this file exists, default data/heartbeat/STOP
   --send               broadcast (needs SDIQT_LIVE=yes); without it, simulate only
-  --log <f>            JSONL log, default data/accounts/gates.jsonl`;
+  --log <f>            JSONL log, default data/accounts/gates.jsonl
+                       (heartbeat: data/heartbeat/heartbeat.jsonl)`;
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -99,8 +110,12 @@ const { values, positionals } = parseArgs({
     "tower-url": { type: "string" },
     batch: { type: "string" },
     archive: { type: "string", default: "data/archive" },
+    interval: { type: "string", default: "1800" },
+    "max-ticks": { type: "string", default: "1" },
+    "max-wait": { type: "string", default: "600" },
+    "stop-file": { type: "string", default: "data/heartbeat/STOP" },
     send: { type: "boolean", default: false },
-    log: { type: "string", default: "data/accounts/gates.jsonl" },
+    log: { type: "string" },
     help: { type: "boolean", default: false },
   },
 });
@@ -119,6 +134,7 @@ const COMMANDS = [
   "seal-exit",
   "cancel-exit",
   "withdraw-exec",
+  "heartbeat",
 ];
 const mode = positionals[0] ?? "";
 if (values.help || !COMMANDS.includes(mode)) {
@@ -129,12 +145,15 @@ if (values.help || !COMMANDS.includes(mode)) {
 const UQOR = 1_000_000n;
 const qor = (uqor: bigint) => `${uqor / UQOR}.${(uqor % UQOR).toString().padStart(6, "0")}`;
 
-mkdirSync(dirname(values.log), { recursive: true });
+const logFile =
+  values.log ??
+  (mode === "heartbeat" ? "data/heartbeat/heartbeat.jsonl" : "data/accounts/gates.jsonl");
+mkdirSync(dirname(logFile), { recursive: true });
 function log(e: Record<string, unknown>) {
   const line = JSON.stringify({ at: new Date().toISOString(), command: mode, ...e }, (_k, v) =>
     typeof v === "bigint" ? v.toString() : v,
   );
-  if (values.send) appendFileSync(values.log, `${line}\n`);
+  if (values.send) appendFileSync(logFile, `${line}\n`);
   console.log(line);
 }
 
@@ -449,4 +468,103 @@ if (mode === "l2-send") {
   // Posted-data fee is per byte on top of gas; the simulation covers it.
   await runNative(`post qledger tx to ${values.rollup}`, post.messages, 0n);
   process.exit(0);
+}
+
+if (mode === "heartbeat") {
+  const positive = (name: string): number => {
+    const raw = values[name as keyof typeof values];
+    if (typeof raw !== "string" || !/^[1-9][0-9]*$/.test(raw))
+      throw new Error(`--${name} must be a positive integer`);
+    return Number(raw);
+  };
+  const amount = values.uqor ? uqorArg() : 1n;
+  const pair: [HeartbeatAccount, HeartbeatAccount] = [
+    { name: basename(values["l2-key"] ?? ""), id: l2Key("l2-key").accountId },
+    { name: basename(values["to-key"] ?? ""), id: l2Key("to-key").accountId },
+  ];
+  if (hex(pair[0].id) === hex(pair[1].id)) throw new Error("--l2-key and --to-key are one account");
+  const keys = new Map(pair.map((a, i) => [hex(a.id), l2Key(i === 0 ? "l2-key" : "to-key")]));
+  const stopFile = values["stop-file"];
+  if (existsSync(stopFile)) throw new Error(`${stopFile} exists: remove it to start`);
+  const capUqor = values["cap-qor"] ? wholeQor("--cap-qor", values["cap-qor"]) : 1n * UQOR;
+  const intervalMs = positive("interval") * 1000;
+  const cfg = {
+    pair,
+    amountUqor: amount,
+    intervalMs,
+    pollMs: Math.min(intervalMs, 30_000),
+    maxWaitMs: positive("max-wait") * 1000,
+    maxTicks: positive("max-ticks"),
+    capUqor,
+    maxErrors: 5,
+    send: values.send,
+  };
+  if (values.send) {
+    await confirmSend(`heartbeat on ${values.rollup}: up to ${cfg.maxTicks} posts`, capUqor);
+  }
+  const archiveDir = join(values.archive, values.rollup);
+  const post = (p: {
+    from: HeartbeatAccount;
+    to: HeartbeatAccount;
+    nonce: bigint;
+    amountUqor: bigint;
+  }) => {
+    const key = keys.get(hex(p.from.id));
+    if (!key) throw new Error(`no key for ${hex(p.from.id)}`);
+    return l2TxMessages({
+      rollupId: values.rollup,
+      key,
+      nonce: p.nonce,
+      amountUqor: p.amountUqor,
+      to: p.to.id,
+    });
+  };
+  let stopSignal = false;
+  for (const sig of ["SIGINT", "SIGTERM"] as const)
+    process.on(sig, () => {
+      stopSignal = true;
+    });
+  log({
+    stage: "start",
+    mode: values.send ? "send" : "simulate",
+    rollup: values.rollup,
+    pair: pair.map((a) => ({ key: a.name, id: hex(a.id) })),
+    amount_uqor: amount.toString(),
+    interval_s: intervalMs / 1000,
+    max_ticks: cfg.maxTicks,
+    cap_qor: qor(capUqor),
+    stop_file: stopFile,
+  });
+  const result = await runHeartbeat(
+    cfg,
+    {
+      async readLedger() {
+        const { entries } = await readArchive(archiveDir);
+        const replay = new InboxReplay(CHAIN_ID, values.rollup);
+        replay.setEntries(entries);
+        return { head: replay.head, ledger: replay.at(replay.head).ledger };
+      },
+      async simulate(p) {
+        const tx = post(p);
+        const sim = await nativeSend(mnemonic, tx.messages, false);
+        return { gas: sim.gas, feeUqor: sim.feeUqor, bytes: tx.bytes };
+      },
+      async broadcast(p) {
+        const r = await nativeSend(mnemonic, post(p).messages, true);
+        if (!r.result) throw new Error("broadcast returned no result");
+        return {
+          hash: r.result.hash,
+          code: r.result.code,
+          height: r.result.height,
+          feeUqor: BigInt(r.result.feeUqor),
+        };
+      },
+    },
+    {
+      sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+      stopRequested: () => stopSignal || existsSync(stopFile),
+      log,
+    },
+  );
+  process.exit(result.reason === "max_ticks" || result.reason === "stop_file" ? 0 : 1);
 }
