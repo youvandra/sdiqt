@@ -3,6 +3,7 @@
  * unified fest account, register post-quantum keys, and create the rollup.
  * Every send is simulated first and refused when the simulation fails.
  */
+import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { StargateClient } from "@cosmjs/stargate";
@@ -11,10 +12,15 @@ import {
   bondRollupSubmitterMsg,
   createRdkRegistry,
   createRollupMsg,
+  depositToRollupMsg,
+  encodeQledgerTx,
   ML_KEM_1024_ALGORITHM_ID,
+  postRollupDataMsg,
+  qledgerKeypairFromSeed,
   registerKemKeyMsg,
   resolvePqcKeypair,
   signerFromEnv,
+  signQledgerTx,
 } from "@qorechain/rdk";
 import * as sdk from "@qorechain/sdk";
 import { feeForGas, parseGasPrice } from "@sdiqt/chain";
@@ -284,4 +290,50 @@ export function bondMessages(rollupId: string, amountUqor: bigint) {
   return (submitter: string) => [
     bondRollupSubmitterMsg({ submitter, rollupId, amount: amountUqor.toString() }),
   ];
+}
+
+/** Write a new 32-byte qledger (ML-DSA-44) seed to `file` as hex (mode 0600). */
+export function writeNewL2Seed(file: string): Uint8Array {
+  if (existsSync(file)) throw new Error(`${file} exists: refusing to overwrite a key`);
+  const seed = randomBytes(32);
+  writeFileSync(file, `${seed.toString("hex")}\n`, { mode: 0o600, flag: "wx" });
+  return seed;
+}
+
+export function readL2Key(file: string) {
+  const hex = readFileSync(file, "utf8").trim();
+  if (!/^[0-9a-f]{64}$/.test(hex)) throw new Error(`${file}: expected a 32-byte hex seed`);
+  return qledgerKeypairFromSeed(hex);
+}
+
+export function depositMessages(rollupId: string, account: Uint8Array, amountUqor: bigint) {
+  return (depositor: string) => [
+    depositToRollupMsg({ depositor, rollupId, account, amount: amountUqor.toString() }),
+  ];
+}
+
+/** A signed qledger transfer or withdrawal, posted to the rollup inbox by `poster`. */
+export function l2TxMessages(input: {
+  rollupId: string;
+  key: ReturnType<typeof qledgerKeypairFromSeed>;
+  nonce: bigint;
+  amountUqor: bigint;
+  to?: Uint8Array;
+  recipient?: string;
+}) {
+  const tx = signQledgerTx({
+    chainId: CHAIN_ID,
+    rollupId: input.rollupId,
+    secretKey: input.key.secretKey,
+    publicKey: input.key.publicKey,
+    nonce: input.nonce,
+    amount: input.amountUqor,
+    ...(input.to ? { to: input.to } : {}),
+    ...(input.recipient ? { recipient: input.recipient } : {}),
+  });
+  const data = encodeQledgerTx(tx);
+  return {
+    bytes: data.length,
+    messages: (poster: string) => [postRollupDataMsg({ poster, rollupId: input.rollupId, data })],
+  };
 }
