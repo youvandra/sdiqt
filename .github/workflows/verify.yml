@@ -25,6 +25,23 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      # Bundles carry compressed STARKs only; the verifier must never reach the
+      # SP1 Groth16 or Plonk wrappers, in its own code or through a dependency feature.
+      - name: Verifier uses the STARK path only
+        run: |
+          set -euo pipefail
+          if grep -rniE 'groth16|plonk' --include='*.rs' --include='*.ts' --include='Cargo.toml' \
+            crates/sdiqt-verify crates/sdiqt-statement packages/verify/src; then
+            echo "::error::verifier sources name Groth16 or Plonk"
+            exit 1
+          fi
+          tree=$(cargo tree --locked -p sdiqt-verify --all-features --target all -e normal,features)
+          if grep -iE 'groth16|plonk|sp1-verifier feature "ark"' <<<"$tree"; then
+            echo "::error::verifier dependency tree pulls in Groth16 or Plonk"
+            exit 1
+          fi
+          grep -q 'sp1-verifier v' <<<"$tree" || { echo "::error::sp1-verifier missing from the tree"; exit 1; }
+          echo "ok: compressed STARK path only"
       - name: Test
         run: scripts/ci-rust-test.sh
 
