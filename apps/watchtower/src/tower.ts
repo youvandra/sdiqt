@@ -6,6 +6,9 @@
  * batch's settlement or validity changes. A submission whose re-execution
  * disagrees with the chain is challenged (see challenge.ts), and every
  * pending batch an upheld challenge rolls back is marked rejected (VOID).
+ *
+ * Without an operator the tower runs watch-only: it re-executes and signs
+ * receipts for a rollup someone else runs, and never looks for proofs.
  */
 import { type BatchRecord, readArchive } from "@sdiqt/archiver";
 import {
@@ -37,9 +40,10 @@ export interface TowerOptions {
   archiveDir: string;
   chain: TowerChain;
   store: TowerStore;
-  bundles: BundleSource;
-  /** The operator address whose QSTR posts name our bundles. */
-  operator: string;
+  /** Where verified bundles live; unused when watch-only. */
+  bundles?: BundleSource;
+  /** The operator address whose QSTR posts name our bundles; omit to run watch-only. */
+  operator?: string;
   /** Pin the SP1 program; without it each manifest's key is used. */
   vkeyHash?: string;
   signer: { issuer: string; secretKey: Uint8Array };
@@ -227,7 +231,8 @@ export class Tower {
       chain.challengeWindowSec(rollupId),
       chain.anchors(rollupId),
     ]);
-    const qstrs = archivedQstrs(entries, this.o.operator);
+    const watchOnly = this.o.operator === undefined;
+    const qstrs = watchOnly ? [] : archivedQstrs(entries, this.o.operator as string);
     let issued = 0;
     // Settlement of each submission seen so far this tick, for the rollback cascade.
     const settledAs = new Map<string, Settlement | "unknown">();
@@ -241,7 +246,7 @@ export class Tower {
     for (const b of ordered) {
       const k = key(b);
       const prev = store.get(k);
-      if (prev && isTerminal(prev)) {
+      if (prev && isTerminal(prev, watchOnly)) {
         // Rows stored before roots were kept get them once; nothing else changes.
         if (prev.state_root === null) store.put({ ...prev, ...rootsOf(b) });
         settledAs.set(k, prev.settlement as Settlement);
@@ -291,7 +296,7 @@ export class Tower {
       let claim: string | null = prev?.claim ?? null;
       let note: string | null = cascaded && !settled ? "rolled back by an upheld challenge" : null;
       let chainDiff: string[] = [];
-      if (!proven && q && judged.match) {
+      if (!proven && q && judged.match && this.o.bundles) {
         const bundle = await this.o.bundles(bundleName(b.batch_index, b.txhash));
         if (!bundle) note = "QSTR posted, bundle not reachable yet";
         else {
@@ -319,7 +324,10 @@ export class Tower {
           });
         }
       }
-      const deadline = (submittedTime ?? this.nowUnix()) + Number(PROVER_PROOF_DEADLINE_S);
+      // Watch-only, no proof is coming: never claim one is being made.
+      const deadline = watchOnly
+        ? this.nowUnix() - 1
+        : (submittedTime ?? this.nowUnix()) + Number(PROVER_PROOF_DEADLINE_S);
       const val = validity({ mismatch: !judged.match, proven, now: this.nowUnix(), deadline });
 
       const row: BatchRow = {
@@ -511,10 +519,11 @@ function claimOf(m: BundleManifestV1, verified: boolean, ms: number): ApiProofCl
   };
 }
 
-/** Nothing about a batch can change once it is settled and its validity is decided. */
-function isTerminal(r: BatchRow): boolean {
-  return (
-    (r.settlement === "final" || r.settlement === "rejected") &&
-    (r.validity === "proven" || r.validity === "mismatch")
-  );
+/**
+ * Nothing about a batch can change once it is settled and its validity is
+ * decided. Watch-only, a settled batch is done: no proof will ever arrive.
+ */
+export function isTerminal(r: BatchRow, watchOnly = false): boolean {
+  const settled = r.settlement === "final" || r.settlement === "rejected";
+  return settled && (watchOnly || r.validity === "proven" || r.validity === "mismatch");
 }

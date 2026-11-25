@@ -1,0 +1,39 @@
+[Unit]
+Description=SDIQT watch-only towers for every other qledger-v1 rollup (JSON API on 127.0.0.1:8803)
+After=network-online.target sdiqt-watchtower.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sdiqt
+Group=sdiqt
+WorkingDirectory=/srv/sdiqt
+Environment=TZ=UTC
+Environment=NODE_ENV=production
+# Watch-only: no challenge and no exit posts, so SDIQT_LIVE stays unset and the
+# key only signs receipts. sdiqt-1 is read from its tower's store, read-only.
+ExecStart=/usr/bin/node --max-old-space-size=900 /srv/sdiqt/app/bin/sdiqt-watchtower.mjs \
+  --watch all \
+  --exclude sdiqt-1 \
+  --reference-db sdiqt-1=/srv/sdiqt/data/watchtower/sdiqt-1.sqlite \
+  --archive /srv/sdiqt/data/archive \
+  --db /srv/sdiqt/data/watchtower/fleet.sqlite \
+  --log /srv/sdiqt/data/watchtower/fleet.jsonl \
+  --mnemonic-file /srv/sdiqt/secrets/acc-2.mnemonic \
+  --interval 60 \
+  --listen 127.0.0.1:8803
+Restart=always
+RestartSec=10
+# Reading the largest archive (sealed-scouts-1, ~80 MB of inbox) peaks near 1 GB.
+MemoryHigh=1100M
+MemoryMax=1400M
+Nice=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/srv/sdiqt/data
+ReadOnlyPaths=/srv/sdiqt/app /srv/sdiqt/secrets
+
+[Install]
+WantedBy=multi-user.target

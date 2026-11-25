@@ -8,10 +8,11 @@ cd "$(dirname "$0")/.."
 
 node apps/watchtower/scripts/bundle.mjs deploy/dist
 rsync -az --delete deploy/dist/ "$HOST:/srv/sdiqt/app/"
-rsync -az deploy/systemd/sdiqt-watchtower.service "$HOST:/tmp/sdiqt-watchtower.service"
+rsync -az deploy/systemd/sdiqt-watchtower.service deploy/systemd/sdiqt-fleet.service "$HOST:/tmp/"
 rsync -az deploy/nginx/sdiqt.xyz.conf "$HOST:/tmp/sdiqt.xyz.conf"
 ssh "$HOST" 'set -e
   sudo install -m 644 /tmp/sdiqt-watchtower.service /etc/systemd/system/sdiqt-watchtower.service
+  sudo install -m 644 /tmp/sdiqt-fleet.service /etc/systemd/system/sdiqt-fleet.service
   if ! sudo test -f /etc/nginx/sites-available/sdiqt.xyz; then
     sudo install -m 644 /tmp/sdiqt.xyz.conf /etc/nginx/sites-available/sdiqt.xyz
     sudo ln -sf /etc/nginx/sites-available/sdiqt.xyz /etc/nginx/sites-enabled/sdiqt.xyz
@@ -20,5 +21,7 @@ ssh "$HOST" 'set -e
   sudo systemctl daemon-reload
   sudo systemctl enable --now sdiqt-watchtower
   sudo systemctl restart sdiqt-watchtower
+  sudo systemctl enable --now sdiqt-fleet
+  sudo systemctl restart sdiqt-fleet
   sleep 3
-  systemctl is-active sdiqt-watchtower'
+  systemctl is-active sdiqt-watchtower sdiqt-fleet'

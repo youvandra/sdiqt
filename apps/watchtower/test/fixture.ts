@@ -67,6 +67,8 @@ export function setup(
     challenger?: Challenger;
     /** Reuse an existing tower database (a restart). */
     db?: string;
+    /** No operator and no bundles: a tower for someone else's rollup. */
+    watchOnly?: boolean;
   } = {},
 ) {
   const dir = mkdtempSync(join(tmpdir(), "sdiqt-tower-"));
@@ -140,13 +142,21 @@ export function setup(
     archiveDir: archive,
     chain,
     store,
-    bundles: async (name): Promise<LoadedBundle | undefined> => {
-      const b = batches.find((x) => bundleName(x.batch_index, x.txhash) === name);
-      if (!b || !(opts.qstrFor ?? []).includes(b)) return undefined;
-      const manifest = manifestFor(b);
-      return { manifestJson: JSON.stringify(manifest), manifest, proofs: [new Uint8Array([1])] };
-    },
-    operator: OPERATOR,
+    ...(opts.watchOnly
+      ? {}
+      : {
+          bundles: async (name: string): Promise<LoadedBundle | undefined> => {
+            const b = batches.find((x) => bundleName(x.batch_index, x.txhash) === name);
+            if (!b || !(opts.qstrFor ?? []).includes(b)) return undefined;
+            const manifest = manifestFor(b);
+            return {
+              manifestJson: JSON.stringify(manifest),
+              manifest,
+              proofs: [new Uint8Array([1])],
+            };
+          },
+          operator: OPERATOR,
+        }),
     signer: { issuer: "qor1tower", secretKey: keys.secretKey },
     refreshArchive: async () => {},
     log: (e) => events.push(e),
