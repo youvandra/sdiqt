@@ -37,6 +37,8 @@ export interface BatchRow {
 export interface PollRow {
   at: string;
   height: string;
+  /** Challenge window of the rollup at this poll, in seconds. */
+  window_s: string | null;
 }
 
 /** What the tower did about one mismatching submission. */
@@ -91,7 +93,7 @@ export class TowerStore {
         status TEXT NOT NULL, reason TEXT, txhash TEXT, attempts INTEGER NOT NULL,
         honest_state_root TEXT NOT NULL, at TEXT NOT NULL, resolved_at TEXT, resubmitted_tx TEXT);
       CREATE TABLE IF NOT EXISTS polls (
-        rollup_id TEXT PRIMARY KEY, at TEXT NOT NULL, height TEXT NOT NULL);
+        rollup_id TEXT PRIMARY KEY, at TEXT NOT NULL, height TEXT NOT NULL, window_s TEXT);
     `);
     const have = new Set(
       (this.db.prepare("PRAGMA table_info(batches)").all() as Array<{ name: string }>).map(
@@ -101,6 +103,12 @@ export class TowerStore {
     for (const [col, type] of ADDED_COLUMNS) {
       if (!have.has(col)) this.db.exec(`ALTER TABLE batches ADD COLUMN ${col} ${type}`);
     }
+    const pollCols = new Set(
+      (this.db.prepare("PRAGMA table_info(polls)").all() as Array<{ name: string }>).map(
+        (c) => c.name,
+      ),
+    );
+    if (!pollCols.has("window_s")) this.db.exec("ALTER TABLE polls ADD COLUMN window_s TEXT");
   }
 
   challenge(key: string): ChallengeRow | undefined {
@@ -122,16 +130,17 @@ export class TowerStore {
   setPoll(rollupId: string, poll: PollRow): void {
     this.db
       .prepare(
-        `INSERT INTO polls (rollup_id, at, height) VALUES (?, ?, ?)
-         ON CONFLICT(rollup_id) DO UPDATE SET at = excluded.at, height = excluded.height`,
+        `INSERT INTO polls (rollup_id, at, height, window_s) VALUES (?, ?, ?, ?)
+         ON CONFLICT(rollup_id) DO UPDATE SET
+           at = excluded.at, height = excluded.height, window_s = excluded.window_s`,
       )
-      .run(rollupId, poll.at, poll.height);
+      .run(rollupId, poll.at, poll.height, poll.window_s);
   }
 
   lastPoll(rollupId: string): PollRow | undefined {
-    return this.db.prepare("SELECT at, height FROM polls WHERE rollup_id = ?").get(rollupId) as
-      | PollRow
-      | undefined;
+    return this.db
+      .prepare("SELECT at, height, window_s FROM polls WHERE rollup_id = ?")
+      .get(rollupId) as PollRow | undefined;
   }
 
   /** Every submission at one batch index, oldest first. */

@@ -21,6 +21,8 @@ export const ApiHealthV1 = z.strictObject({
   last_poll_height: DecimalString.nullable(),
   lag_s: DecimalString.nullable(),
   max_lag_s: DecimalString,
+  /** The rollup's challenge window as of the last poll; null before the first poll. */
+  challenge_window_s: DecimalString.nullable(),
   batches: DecimalString,
   last_receipt: z
     .strictObject({
@@ -72,6 +74,8 @@ export const ApiBatchSummaryV1 = z.strictObject({
   validity: Validity,
   proven: z.boolean(),
   submissions: DecimalString,
+  /** Block time of the current submission, when the tower has seen it. */
+  submitted_time: z.iso.datetime().nullable(),
 });
 
 export const ApiBatchListV1 = z.strictObject({
