@@ -13,6 +13,7 @@
   },
   "scripts": {
     "watchtower": "node src/cli.ts",
+    "dev:fixture": "node scripts/dev-fixture.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

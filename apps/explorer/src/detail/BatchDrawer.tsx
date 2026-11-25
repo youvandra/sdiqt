@@ -1,5 +1,5 @@
 import type { ApiBatchDetailV1, ApiReceiptV1 } from "@sdiqt/protocol";
-import { Check, Download, Minus, X } from "lucide-react";
+import { Archive, Check, Download, Minus, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Badge, Hash, Segmented } from "../components/Ui.tsx";
 import { api, usePolled } from "../lib/api.ts";
@@ -68,6 +68,11 @@ export function BatchDrawer({ index, onClose }: { index: string; onClose: () => 
               <Badge tone={VALIDITY[current.validity].tone} title={VALIDITY[current.validity].hint}>
                 {VALIDITY[current.validity].label}
               </Badge>
+              {current.pruned && (
+                <Badge tone="accent" title="QoreChain pruned this batch record">
+                  Read From Archive
+                </Badge>
+              )}
               <span className="t-small">
                 {entries(current.inbox_from, current.inbox_end)} · height{" "}
                 {num(current.submit_height)}
@@ -95,7 +100,7 @@ export function BatchDrawer({ index, onClose }: { index: string; onClose: () => 
           )}
           {!current && !detail.error && <p className="t-body">Reading batch {index}</p>}
           {current && tab === "overview" && <OverviewTab s={current} />}
-          {current && tab === "proof" && <ProofTab s={current} />}
+          {current && tab === "proof" && <ProofTab index={index} s={current} />}
           {current && tab === "receipt" && <ReceiptTab index={index} s={current} />}
           {subs && tab === "history" && <HistoryTab subs={subs} />}
         </div>
@@ -150,6 +155,16 @@ function OverviewTab({ s }: { s: Submission }) {
   const honest = s.challenge?.honest_state_root;
   return (
     <>
+      {s.pruned && (
+        <div className="notice" data-tone="accent" role="note">
+          <Archive size={16} aria-hidden="true" />
+          <span>
+            QoreChain pruned this batch record after its retention window. The roots, proof claim
+            and receipts below are read from the SDIQT archive, and the settlement comes from the
+            state root the rollup creator anchored.
+          </span>
+        </div>
+      )}
       <Panel
         title="Roots"
         aside={
@@ -240,7 +255,7 @@ function OverviewTab({ s }: { s: Submission }) {
   );
 }
 
-function ProofTab({ s }: { s: Submission }) {
+function ProofTab({ index, s }: { index: string; s: Submission }) {
   const c = s.claim;
   if (!c) {
     return (
@@ -297,6 +312,19 @@ function ProofTab({ s }: { s: Submission }) {
             </li>
           ))}
         </ol>
+        <p className="t-caption chunks-note">
+          The proof root is the hash of these chunk hashes in order; the QSTR post commits to it.
+        </p>
+      </Panel>
+      <Panel title="Verify it yourself">
+        <p className="t-small">
+          Download bundle{" "}
+          <span className="t-mono">{`batch-${index}-${s.submit_tx.slice(0, 12)}`}</span> and run the
+          open-source verifier. It needs no chain access and gives the same answer after QoreChain
+          prunes the batch.
+        </p>
+        <pre className="cmd">{`sdiqt-verify bundle batch-${index}-${s.submit_tx.slice(0, 12)} \\
+  --vkey-hash ${c.program_vkey_hash}`}</pre>
       </Panel>
     </>
   );
