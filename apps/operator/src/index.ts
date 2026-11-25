@@ -1,3 +1,4 @@
+export * from "./exit-packet.ts";
 export * from "./operator.ts";
 export * from "./plan.ts";
 export * from "./prove-queue.ts";
@@ -8,3 +9,4 @@ export * from "./rust-claimer.ts";
 export * from "./selfcheck.ts";
 export * from "./submit.ts";
 export * from "./upload.ts";
+export * from "./withdraw.ts";
