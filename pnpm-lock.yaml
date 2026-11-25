@@ -205,6 +205,31 @@ importers:
         specifier: 5.1.1
         version: 5.1.1(@types/node@22.20.5)(vite@8.3.8(@types/node@22.20.5))
 
+  redteam:
+    dependencies:
+      '@qorechain/qoreseal':
+        specifier: 0.1.0
+        version: 0.1.0
+      '@qorechain/rdk':
+        specifier: 0.9.0
+        version: 0.9.0(viem@2.58.6(typescript@5.9.3)(zod@4.6.7))
+      '@sdiqt/operator':
+        specifier: workspace:*
+        version: link:../apps/operator
+      '@sdiqt/protocol':
+        specifier: workspace:*
+        version: link:../packages/protocol
+      '@sdiqt/verify':
+        specifier: workspace:*
+        version: link:../packages/verify
+      '@sdiqt/watchtower':
+        specifier: workspace:*
+        version: link:../apps/watchtower
+    devDependencies:
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+
 packages:
 
   '@adraffy/ens-normalize@1.11.1':
