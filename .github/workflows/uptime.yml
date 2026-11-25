@@ -1,0 +1,56 @@
+name: uptime
+
+# External check of the public watchtower: fails (and mails the repo owner)
+# when sdiqt.xyz is down, the tower reports a problem, or its last poll is stale.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Watchtower health
+        env:
+          URL: https://sdiqt.xyz/api/health
+        run: |
+          set -euo pipefail
+          body=""
+          for attempt in 1 2 3; do
+            if body=$(curl -fsS --max-time 15 "$URL"); then break; fi
+            body=""
+            sleep 20
+          done
+          if [ -z "$body" ]; then
+            echo "::error::$URL unreachable after 3 attempts"
+            exit 1
+          fi
+          echo "$body" | jq .
+          status=$(echo "$body" | jq -r .status)
+          lag=$(echo "$body" | jq -r '.lag_s | tonumber')
+          max=$(echo "$body" | jq -r '.max_lag_s | tonumber')
+          if [ "$status" != "ok" ]; then
+            echo "::error::watchtower status is $status"
+            exit 1
+          fi
+          if [ "$lag" -gt "$max" ]; then
+            echo "::error::last poll is ${lag}s old (limit ${max}s)"
+            exit 1
+          fi
+          echo "ok: lag ${lag}s"
+      - name: Proof bundles served
+        run: |
+          set -euo pipefail
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://sdiqt.xyz/bundles/)
+          if [ "$code" != "200" ]; then
+            echo "::error::/bundles/ returned $code"
+            exit 1
+          fi
