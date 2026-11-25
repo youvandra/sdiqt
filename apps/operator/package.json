@@ -9,7 +9,8 @@
     ".": "./src/index.ts"
   },
   "bin": {
-    "sdiqt-operator": "./src/cli.ts"
+    "sdiqt-operator": "./src/cli.ts",
+    "sdiqt-accounts": "./src/accounts-cli.ts"
   },
   "scripts": {
     "operator": "node src/cli.ts",
@@ -17,7 +18,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cosmjs/proto-signing": "0.39.0",
+    "@cosmjs/stargate": "0.39.0",
+    "@qorechain/qoreseal": "0.1.0",
     "@qorechain/rdk": "0.9.0",
+    "@qorechain/sdk": "0.10.0",
     "@sdiqt/archiver": "workspace:*",
     "@sdiqt/chain": "workspace:*",
     "@sdiqt/protocol": "workspace:*",
