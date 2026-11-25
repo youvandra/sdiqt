@@ -21,6 +21,16 @@ pub mod archive;
 pub mod constants;
 pub mod input;
 
+/// Parse a decimal string in its one canonical spelling: ASCII digits only,
+/// no sign, no leading zero (except `0` itself), and within `u64`.
+pub fn parse_canonical_u64(v: &str) -> Option<u64> {
+    let b = v.as_bytes();
+    if b.is_empty() || !b.iter().all(u8::is_ascii_digit) || (b.len() > 1 && b[0] == b'0') {
+        return None;
+    }
+    v.parse().ok()
+}
+
 /// How signatures are checked inside the statement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SigMode {

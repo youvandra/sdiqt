@@ -58,3 +58,25 @@ fn short_archive_is_refused() {
     let last = batches.last().unwrap();
     assert!(batch_input_from_archive(CHAIN, ROLLUP, &entries[..10], last).is_err());
 }
+
+#[test]
+fn canonical_u64_only() {
+    use sdiqt_statement::parse_canonical_u64 as p;
+    assert_eq!(p("0"), Some(0));
+    assert_eq!(p("5"), Some(5));
+    assert_eq!(p("18446744073709551615"), Some(u64::MAX));
+    for bad in [
+        "",
+        "+5",
+        "-5",
+        "01",
+        "00",
+        " 5",
+        "5 ",
+        "0x5",
+        "18446744073709551616",
+        "５",
+    ] {
+        assert_eq!(p(bad), None, "{bad:?}");
+    }
+}
