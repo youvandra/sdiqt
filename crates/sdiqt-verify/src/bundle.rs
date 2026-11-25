@@ -106,7 +106,23 @@ impl Manifest {
                 "manifest is not in canonical form".into(),
             ));
         }
+        m.check_files()?;
         Ok(m)
+    }
+
+    /// Every chunk `i` must be stored as `chunk-{i}.bin`, so a manifest can
+    /// never point a reader at a path outside the bundle directory.
+    pub fn check_files(&self) -> Result<(), BundleError> {
+        for (i, c) in self.chunks.iter().enumerate() {
+            if c.file != chunk_file(i) {
+                return Err(BundleError::Manifest(format!(
+                    "chunk {i} file must be {}, got {:?}",
+                    chunk_file(i),
+                    c.file
+                )));
+            }
+        }
+        Ok(())
     }
 }
 

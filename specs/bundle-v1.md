@@ -44,7 +44,7 @@ A bundle is a directory, named `batch-<batch_index>-<first 12 characters of the 
 - **BND-2.** A reader of a bundle directory MUST refuse a `manifest.json` that is not in canonical form.
 - **BND-3.** A manifest MUST match `BundleManifestV1`: at least one chunk, every `file` of the form `chunk-<digits>.bin`, every integer a canonical decimal string and every hash 64 lowercase hex digits.
 
-The CLI applies BND-2 when it reads a directory. The JSON entry point that the WebAssembly builds expose takes the manifest text as given, and a reader that hashes a manifest hashes its canonical bytes, so a non-canonical copy yields the same `manifest_sha256`. The Rust verifier checks the hex fields it decodes but leaves the `file` pattern of BND-3 to the TypeScript schema, which the watchtower and the explorer apply before they fetch chunk files.
+The CLI applies BND-2 when it reads a directory. The JSON entry point that the WebAssembly builds expose takes the manifest text as given, and a reader that hashes a manifest hashes its canonical bytes, so a non-canonical copy yields the same `manifest_sha256`. The Rust verifier checks the hex fields and integers it decodes and applies BND-6 to every `file`, so the CLI never reads a path the manifest invents; the TypeScript schema applies the BND-3 pattern before the watchtower and the explorer fetch chunk files.
 
 ## Verification
 
@@ -52,7 +52,7 @@ The CLI applies BND-2 when it reads a directory. The JSON entry point that the W
 
 - **BND-4.** When a program key is pinned, a verifier MUST refuse a manifest whose `program_vkey_hash` differs from it.
 - **BND-5.** A verifier MUST refuse a bundle whose number of chunk files differs from the number of manifest chunks.
-- **BND-6.** A verifier MUST refuse a manifest whose chunk at position `i` has an `index` other than `i`.
+- **BND-6.** A verifier MUST refuse a manifest whose chunk at position `i` has an `index` other than `i` or a `file` other than `chunk-<i>.bin`.
 - **BND-7.** A verifier MUST refuse a chunk file whose SHA-256 differs from its `proof_sha256`.
 - **BND-8.** A verifier MUST refuse a chunk whose proof does not verify as an SP1 compressed STARK against `program_vkey_hash` and the chunk's `public_values`.
 - **BND-9.** A verifier MUST refuse a manifest whose `proof_root` differs from the root of the chunk files' hashes.

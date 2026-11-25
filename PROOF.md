@@ -76,6 +76,8 @@ Every entry is in the rollup inbox; transfers and withdrawals carry an ML-DSA-44
 ## Check it yourself
 
 ```bash
+pnpm install --frozen-lockfile
+node apps/archiver/src/cli.ts --rollup sdiqt-1 --from-height 10720040
 node scripts/proof.mjs --bundles https://sdiqt.xyz/bundles --at-height 10728225 --check
 ```
 

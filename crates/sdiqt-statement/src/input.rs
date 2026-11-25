@@ -66,8 +66,7 @@ impl std::fmt::Display for InputError {
 impl std::error::Error for InputError {}
 
 fn int(name: &'static str, v: &str) -> Result<u64, InputError> {
-    v.parse()
-        .map_err(|_| InputError::Field(name, v.to_string()))
+    crate::parse_canonical_u64(v).ok_or_else(|| InputError::Field(name, v.to_string()))
 }
 
 fn bytes(name: &'static str, v: &str) -> Result<Vec<u8>, InputError> {
