@@ -25,3 +25,6 @@ AGENTS.md
 .vscode/
 crates/sdiqt-verify/examples/web/pkg/
 crates/sdiqt-verify/examples/web/proof/
+
+# host bundle (built on the Mac by apps/watchtower/scripts/bundle.mjs)
+deploy/dist/
