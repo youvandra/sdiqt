@@ -8,7 +8,7 @@ export function NotFound() {
         <h1 className="t-h2" id="nf-title">
           This page is missing.
         </h1>
-        <p className="t-body">The explorer lives on one page. Every batch opens from there.</p>
+        <p className="t-body">Every rollup and every batch opens from the explorer home.</p>
         <Link to="/" className="btn btn-primary">
           Open Explorer
         </Link>

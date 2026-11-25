@@ -2,9 +2,10 @@ import type { ApiBatchDetailV1, ApiReceiptV1 } from "@sdiqt/protocol";
 import { Archive, Check, Download, Minus, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Badge, Hash, Segmented } from "../components/Ui.tsx";
-import { api, usePolled } from "../lib/api.ts";
+import { usePolled } from "../lib/api.ts";
 import { bundleName } from "../lib/bundle.ts";
-import { absolute, ago, entries, num, SETTLEMENT, VALIDITY } from "../lib/format.ts";
+import { absolute, ago, axis, entries, num, SETTLEMENT } from "../lib/format.ts";
+import { useRollup } from "../lib/rollup.ts";
 import { BrowserVerify } from "./BrowserVerify.tsx";
 
 type Submission = ApiBatchDetailV1["submissions"][number];
@@ -21,8 +22,11 @@ export function BatchDrawer({
   /** Open on the Proof tab and start the browser check at once. */
   verify?: boolean;
 }) {
-  const detail = usePolled((s) => api.batch(index, s), `batch:${index}`);
-  const [tab, setTab] = useState<Tab>(verify ? "proof" : "overview");
+  const { id, tier, api } = useRollup();
+  const stark = tier === "stark";
+  const ax = axis(tier);
+  const detail = usePolled((s) => api.batch(index, s), `batch:${id}:${index}`);
+  const [tab, setTab] = useState<Tab>(verify && stark ? "proof" : "overview");
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -54,7 +58,7 @@ export function BatchDrawer({
       <aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
         <header className="drawer-head">
           <div className="drawer-title-row">
-            <span className="eyebrow">Batch</span>
+            <span className="eyebrow">{id}</span>
             <button
               ref={closeRef}
               type="button"
@@ -76,8 +80,10 @@ export function BatchDrawer({
               >
                 {SETTLEMENT[current.settlement].label}
               </Badge>
-              <Badge tone={VALIDITY[current.validity].tone} title={VALIDITY[current.validity].hint}>
-                {VALIDITY[current.validity].label}
+              <Badge tone={ax.of(current.validity).tone} title={ax.of(current.validity).hint}>
+                {stark
+                  ? ax.of(current.validity).label
+                  : `Re-executed: ${ax.of(current.validity).label}`}
               </Badge>
               {current.pruned && (
                 <Badge tone="accent" title="QoreChain pruned this batch record">
@@ -96,7 +102,7 @@ export function BatchDrawer({
             onChange={setTab}
             options={[
               { value: "overview", label: "Overview" },
-              { value: "proof", label: "Proof" },
+              ...(stark ? [{ value: "proof" as const, label: "Proof" }] : []),
               { value: "receipt", label: "Receipt" },
               { value: "history", label: "History", ...(subs ? { count: subs.length } : {}) },
             ]}
@@ -110,8 +116,10 @@ export function BatchDrawer({
             </div>
           )}
           {!current && !detail.error && <p className="t-body">Reading batch {index}</p>}
-          {current && tab === "overview" && <OverviewTab s={current} />}
-          {current && tab === "proof" && <ProofTab index={index} s={current} autoVerify={verify} />}
+          {current && tab === "overview" && <OverviewTab s={current} stark={stark} />}
+          {current && stark && tab === "proof" && (
+            <ProofTab index={index} s={current} autoVerify={verify} />
+          )}
           {current && tab === "receipt" && <ReceiptTab index={index} s={current} />}
           {subs && tab === "history" && <HistoryTab subs={subs} />}
         </div>
@@ -162,10 +170,18 @@ function Mark({ ok, label }: { ok: boolean | undefined; label: string }) {
   );
 }
 
-function OverviewTab({ s }: { s: Submission }) {
+function OverviewTab({ s, stark }: { s: Submission; stark: boolean }) {
   const honest = s.challenge?.honest_state_root;
   return (
     <>
+      {!stark && (
+        <div className="notice" data-tone="accent" role="note">
+          <span>
+            SDIQT re-executes this rollup from its public inbox and signs a receipt with the result.
+            STARK proofs run on sdiqt-1, the reference rollup, so this receipt says unproven.
+          </span>
+        </div>
+      )}
       {s.pruned && (
         <div className="notice" data-tone="accent" role="note">
           <Archive size={16} aria-hidden="true" />
@@ -189,12 +205,12 @@ function OverviewTab({ s }: { s: Submission }) {
         {s.chain === null ? (
           <p className="t-small">The tower stored this submission before it kept chain roots.</p>
         ) : (
-          <div className="roots">
+          <div className="roots" data-tier={stark ? "stark" : "reexec"}>
             <div className="roots-head t-caption">
               <span>Field</span>
               <span>Chain</span>
               <span className="c-center">Re-execution</span>
-              <span className="c-center">Proof claim</span>
+              {stark && <span className="c-center">Proof claim</span>}
             </div>
             {ROOT_ROWS.map((r) => {
               const chainValue = s.chain?.[r.chain] ?? "";
@@ -214,12 +230,14 @@ function OverviewTab({ s }: { s: Submission }) {
                   <span className="c-center">
                     <Mark ok={!differs} label="Re-execution" />
                   </span>
-                  <span className="c-center">
-                    <Mark
-                      ok={claimValue === undefined ? undefined : claimValue === chainValue}
-                      label="Proof claim"
-                    />
-                  </span>
+                  {stark && (
+                    <span className="c-center">
+                      <Mark
+                        ok={claimValue === undefined ? undefined : claimValue === chainValue}
+                        label="Proof claim"
+                      />
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -342,7 +360,9 @@ function ProofTab({ index, s, autoVerify }: { index: string; s: Submission; auto
 }
 
 function ReceiptTab({ index, s }: { index: string; s: Submission }) {
-  const receipt = usePolled((sig) => api.receipt(index, sig), `receipt:${index}`, 30_000);
+  const { id, tier, api } = useRollup();
+  const ax = axis(tier);
+  const receipt = usePolled((sig) => api.receipt(index, sig), `receipt:${id}:${index}`, 30_000);
   return (
     <>
       <Panel
@@ -356,7 +376,7 @@ function ReceiptTab({ index, s }: { index: string; s: Submission }) {
             {s.timeline.map((t) => (
               <li key={t.issued_at}>
                 <span className="t-body-strong">
-                  {SETTLEMENT[t.settlement].label} · {VALIDITY[t.validity].label}
+                  {SETTLEMENT[t.settlement].label} · {ax.of(t.validity).label}
                 </span>
                 <span className="t-small">{absolute(t.issued_at)}</span>
               </li>

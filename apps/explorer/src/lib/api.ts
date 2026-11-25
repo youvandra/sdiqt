@@ -9,6 +9,7 @@ import {
   ApiErrorV1,
   ApiHealthV1,
   ApiReceiptV1,
+  ApiRollupListV1,
   CountsV1,
 } from "@sdiqt/protocol";
 import { useEffect, useRef, useState } from "react";
@@ -40,14 +41,28 @@ async function getParsed<S extends z.ZodType>(
   return schema.parse(body);
 }
 
+/** The rollup SDIQT runs and proves; its own tower serves it at the top-level routes. */
+export const REFERENCE_ROLLUP = "sdiqt-1";
+
+/** Routes of one rollup: the reference at `/api`, every other one at `/api/r/<id>`. */
+export function rollupApi(rollupId: string) {
+  const base = rollupId === REFERENCE_ROLLUP ? "/api" : `/api/r/${encodeURIComponent(rollupId)}`;
+  return {
+    /** 503 still carries a valid body: the tower is stale, the explorer says so. */
+    health: (signal?: AbortSignal) => getParsed(`${base}/health`, ApiHealthV1, [200, 503], signal),
+    batches: (signal?: AbortSignal) => getParsed(`${base}/batches`, ApiBatchListV1, [200], signal),
+    batch: (i: string, signal?: AbortSignal) =>
+      getParsed(`${base}/batches/${encodeURIComponent(i)}`, ApiBatchDetailV1, [200], signal),
+    receipt: (i: string, signal?: AbortSignal) =>
+      getParsed(`${base}/receipts/${encodeURIComponent(i)}`, ApiReceiptV1, [200], signal),
+  };
+}
+export type RollupApi = ReturnType<typeof rollupApi>;
+
 export const api = {
-  /** 503 still carries a valid body: the tower is stale, the explorer says so. */
-  health: (signal?: AbortSignal) => getParsed("/api/health", ApiHealthV1, [200, 503], signal),
-  batches: (signal?: AbortSignal) => getParsed("/api/batches", ApiBatchListV1, [200], signal),
-  batch: (i: string, signal?: AbortSignal) =>
-    getParsed(`/api/batches/${encodeURIComponent(i)}`, ApiBatchDetailV1, [200], signal),
-  receipt: (i: string, signal?: AbortSignal) =>
-    getParsed(`/api/receipts/${encodeURIComponent(i)}`, ApiReceiptV1, [200], signal),
+  ...rollupApi(REFERENCE_ROLLUP),
+  /** Every watched qledger-v1 rollup, the reference first. */
+  rollups: (signal?: AbortSignal) => getParsed("/api/rollups", ApiRollupListV1, [200], signal),
   /** `docs/counts.json` as deployed next to the explorer; absent in dev. */
   counts: async (signal?: AbortSignal): Promise<CountsV1 | null> => {
     const res = await fetch("/counts.json", { signal: signal ?? null, cache: "no-store" });

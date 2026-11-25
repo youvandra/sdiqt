@@ -17,7 +17,7 @@ import { join } from "node:path";
 const BASE = (process.argv[2] ?? "http://localhost:5320").replace(/\/$/, "");
 const CHROME = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PROFILE = mkdtempSync(join(tmpdir(), "sdiqt-links-"));
-const PAGES = ["/", "/privacy", "/terms"];
+const PAGES = ["/", "/r/sdiqt-1", "/privacy", "/terms"];
 
 function render(path) {
   return execFileSync(

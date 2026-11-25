@@ -10,6 +10,8 @@
  *   POST /api/exits          store an exit packet v1 (the newest seq per account)
  *   POST /api/exits/cancel   apply a signed exit cancel v1
  *   GET /api/exits/:account  status of an account's exit packet (never its contents)
+ *   GET /api/rollups         every watched qledger-v1 rollup, with its check tier and counts
+ *   GET /api/r/:rollup/...   health, batches, batches/:i and receipts/:i of one watched rollup
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
@@ -19,6 +21,9 @@ import {
   ApiHealthV1,
   ApiProofClaim,
   ApiReceiptV1,
+  ApiRollupListV1,
+  ApiRollupSummaryV1,
+  type CheckTier,
   canonicalize,
   DecimalString,
 } from "@sdiqt/protocol";
@@ -34,7 +39,19 @@ export interface ApiOptions {
   onError?: (err: unknown) => void;
   /** Enables the exit packet routes. */
   exits?: ExitDesk;
+  /** Rollups served under /api/r/:rollup and listed by /api/rollups, reference first. */
+  rollups?: () => RollupSource[];
 }
+
+/** One rollup the API can serve: where its rows live and how far it is checked. */
+export interface RollupSource {
+  id: string;
+  store: TowerStore;
+  tier: CheckTier;
+}
+
+const ROLLUP_ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const DAY_S = 86_400;
 
 /** Largest request body the exit routes read; a v1 packet is about 16 kB. */
 export const MAX_EXIT_BODY_BYTES = 64 * 1024;
@@ -187,6 +204,52 @@ function challengeOf(store: TowerStore, key: string) {
     : null;
 }
 
+/** Counts for one rollup, from the current submission at each index. */
+export function rollupSummary(o: ApiOptions, src: RollupSource): ApiRollupSummaryV1 {
+  const h = health({ ...o, store: src.store, rollupId: src.id }).body;
+  const rows = src.store.list(src.id);
+  const current = [...latestPerIndex(rows).values()].map((x) => x.row);
+  const count = (f: (r: BatchRow) => boolean) => String(current.filter(f).length);
+  const mismatches = rows.filter((r) => r.judged === "mismatch");
+  const last = mismatches.at(-1);
+  const times = rows.map((r) => r.submitted_time).filter((t): t is number => t !== null);
+  const latest = times.length ? Math.max(...times) : null;
+  const pollUnix = h.last_poll_at ? Math.floor(Date.parse(h.last_poll_at) / 1000) : null;
+  return ApiRollupSummaryV1.parse({
+    rollup_id: src.id,
+    tier: src.tier,
+    status: h.status,
+    last_poll_at: h.last_poll_at,
+    challenge_window_s: h.challenge_window_s,
+    batches: String(current.length),
+    submissions: String(rows.length),
+    match: count((r) => r.judged === "match"),
+    mismatch: count((r) => r.judged === "mismatch"),
+    pending: count((r) => r.settlement === "pending"),
+    final: count((r) => r.settlement === "final"),
+    rejected: count((r) => r.settlement === "rejected"),
+    proven: src.tier === "stark" ? count((r) => r.validity === "proven") : "0",
+    mismatches_total: String(mismatches.length),
+    mismatches_rejected: String(mismatches.filter((r) => r.settlement === "rejected").length),
+    last_mismatch: last
+      ? { batch_index: last.batch_index, submit_tx: last.txhash, settlement: last.settlement }
+      : null,
+    submissions_24h:
+      pollUnix === null ? "0" : String(times.filter((t) => t > pollUnix - DAY_S).length),
+    last_submitted_time: latest === null ? null : iso(latest),
+    last_receipt_at: h.last_receipt?.issued_at ?? null,
+  });
+}
+
+export function rollupList(o: ApiOptions, sources: RollupSource[]): ApiRollupListV1 {
+  const first = sources[0];
+  if (!first) throw new HttpError(404, "no rollups watched");
+  return ApiRollupListV1.parse({
+    reference: first.id,
+    rollups: sources.map((src) => rollupSummary(o, src)),
+  });
+}
+
 export function receipt(o: ApiOptions, i: string): ApiReceiptV1 {
   const rows = o.store.atIndex(o.rollupId, index(i));
   const current = rows.at(-1);
@@ -244,6 +307,32 @@ async function exitRoute(
   throw new HttpError(req.method === "GET" ? 404 : 405, "no such route");
 }
 
+/** `/api/rollups` and `/api/r/:rollup/<route>[/:arg]`, served from each rollup's store. */
+function rollupRoute(
+  o: ApiOptions,
+  sources: RollupSource[],
+  parts: string[],
+  res: ServerResponse,
+): void {
+  const [kind, id, route, arg, extra] = parts;
+  if (kind === "rollups" && id === undefined) {
+    send(res, 200, rollupList(o, sources));
+    return;
+  }
+  if (kind !== "r" || !id || !ROLLUP_ID.test(id) || extra !== undefined)
+    throw new HttpError(404, "no such route");
+  const src = sources.find((x) => x.id === id);
+  if (!src) throw new HttpError(404, `rollup ${id} is not watched`);
+  const one: ApiOptions = { ...o, store: src.store, rollupId: src.id };
+  if (route === "health" && arg === undefined) {
+    const h = health(one);
+    send(res, h.status, h.body);
+  } else if (route === "batches" && arg === undefined) send(res, 200, batchList(one));
+  else if (route === "batches" && arg) send(res, 200, batchDetail(one, arg));
+  else if (route === "receipts" && arg) send(res, 200, receipt(one, arg));
+  else throw new HttpError(404, "no such route");
+}
+
 /** Route one request; exported for tests that skip the socket. */
 export async function handle(
   o: ApiOptions,
@@ -252,7 +341,13 @@ export async function handle(
 ): Promise<void> {
   try {
     const path = new URL(req.url ?? "/", "http://tower").pathname.replace(/\/+$/, "");
-    const [, root, route, arg, extra] = path.split("/");
+    const parts = path.split("/");
+    if (parts[1] === "api" && (parts[2] === "rollups" || parts[2] === "r") && o.rollups) {
+      if (req.method !== "GET") throw new HttpError(405, "read-only API");
+      rollupRoute(o, o.rollups(), parts.slice(2), res);
+      return;
+    }
+    const [, root, route, arg, extra] = parts;
     if (root !== "api" || extra !== undefined) throw new HttpError(404, "no such route");
     if (route === "exits" && o.exits) {
       const r = await exitRoute(o.exits, req, arg);

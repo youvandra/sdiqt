@@ -74,8 +74,14 @@ const ADDED_COLUMNS: Array<[keyof BatchRow, string]> = [
 export class TowerStore {
   readonly db: DatabaseSync;
 
-  constructor(path: string) {
-    this.db = new DatabaseSync(path);
+  /**
+   * Open the store at `path`. With `readOnly` the file must already exist and
+   * nothing is created or migrated: another process owns it (SQLite WAL lets
+   * this reader see its commits).
+   */
+  constructor(path: string, opts: { readOnly?: boolean } = {}) {
+    this.db = new DatabaseSync(path, opts.readOnly ? { readOnly: true } : {});
+    if (opts.readOnly) return;
     this.db.exec(`
       PRAGMA journal_mode = WAL;
       CREATE TABLE IF NOT EXISTS batches (

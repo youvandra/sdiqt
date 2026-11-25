@@ -23,15 +23,17 @@ import {
   ROLLUP_ID,
   toHex,
 } from "@sdiqt/protocol";
-import { createApiServer } from "./api.ts";
+import { createApiServer, type RollupSource } from "./api.ts";
 import { bundleSource } from "./bundles.ts";
 import { restChain } from "./chain-view.ts";
 import { type Challenger, liveChallenger } from "./challenge.ts";
 import { ExitDesk } from "./exits.ts";
+import { checkable, Fleet } from "./fleet.ts";
 import { TowerStore } from "./store.ts";
 import { Tower } from "./tower.ts";
 
 const USAGE = `sdiqt-watchtower --operator <qor1...> --bundles <url|dir> (--mnemonic-file <f> | --dev-seed <hex>) [options]
+sdiqt-watchtower --watch <all|id,id,...> (--mnemonic-file <f> | --dev-seed <hex>) [options]
 
   --rollup <id>          default ${ROLLUP_ID}
   --archive <dir>        default data/archive
@@ -51,7 +53,15 @@ const USAGE = `sdiqt-watchtower --operator <qor1...> --bundles <url|dir> (--mnem
   --exits                accept exit packets v1 sealed to the tower's registered ML-KEM-1024
                          key (needs --mnemonic-file); due packets are opened but held
   --exits-post           also post due withdrawals to the inbox (needs SDIQT_LIVE=yes)
-  --exit-cap-qor <n>     exit posts only: daily spend cap, default 2`;
+  --exit-cap-qor <n>     exit posts only: daily spend cap, default 2
+
+Watch-only (other people's rollups: re-execute and sign receipts, never challenge):
+  --watch <all|ids>      all = every qledger-v1 rollup with a based inbox, found again
+                         every 30 ticks; or a comma list
+  --exclude <ids>        rollups to leave out, e.g. the one a proving tower runs
+  --reference-db <id=f>  serve this rollup from another tower's store, read-only, listed
+                         first by /api/rollups as the STARK-proven reference
+  (--db defaults to data/watchtower/fleet.sqlite)`;
 
 const { values } = parseArgs({
   options: {
@@ -72,15 +82,21 @@ const { values } = parseArgs({
     exits: { type: "boolean", default: false },
     "exits-post": { type: "boolean", default: false },
     "exit-cap-qor": { type: "string", default: "2" },
+    watch: { type: "string" },
+    exclude: { type: "string" },
+    "reference-db": { type: "string" },
     help: { type: "boolean", default: false },
   },
 });
-if (values.help || !values.operator || !values.bundles) {
+const watchMode = values.watch !== undefined;
+if (values.help || (!watchMode && (!values.operator || !values.bundles))) {
   console.log(USAGE);
   process.exit(values.help ? 0 : 2);
 }
 
-const rollup = values.rollup;
+if (watchMode && (values.challenge || values.exits || values["exits-post"] || values.operator))
+  throw new Error("--watch is watch-only: no --challenge, --exits or --operator");
+const rollup = watchMode ? "fleet" : values.rollup;
 const logFile = values.log ?? join("data/watchtower", `${rollup}.jsonl`);
 const dbFile = values.db ?? join("data/watchtower", `${rollup}.sqlite`);
 mkdirSync(dirname(logFile), { recursive: true });
@@ -180,23 +196,27 @@ if (values.exits || values["exits-post"]) {
   });
 }
 
+const refresh = (id: string, dir: string) => async () => {
+  try {
+    await catchUp({ client, chainId: CHAIN_ID, rollupId: id, dir });
+  } catch (err) {
+    if (!(err instanceof ArchiveLagError)) throw err;
+  }
+};
+
+if (watchMode) await runFleet();
+
 const tower = new Tower({
   chainId: CHAIN_ID,
   rollupId: rollup,
   archiveDir,
   chain: restChain(client),
   store,
-  bundles: bundleSource(values.bundles),
-  operator: values.operator,
+  bundles: bundleSource(values.bundles as string),
+  operator: values.operator as string,
   ...(values["vkey-hash"] ? { vkeyHash: values["vkey-hash"] } : {}),
   signer,
-  refreshArchive: async () => {
-    try {
-      await catchUp({ client, chainId: CHAIN_ID, rollupId: rollup, dir: archiveDir });
-    } catch (err) {
-      if (!(err instanceof ArchiveLagError)) throw err;
-    }
-  },
+  refreshArchive: refresh(rollup, archiveDir),
   log,
   ...(challenger ? { challenger } : {}),
   ...(exits ? { exits } : {}),
@@ -209,21 +229,77 @@ log({
   challenge: challenger !== undefined,
   exits: exits ? (values["exits-post"] ? "post" : "hold") : "off",
 });
-const api = values.listen
-  ? createApiServer({
-      store,
-      rollupId: rollup,
-      ...(exits ? { exits } : {}),
-      onError: (err) => log({ event: "api_error", alert: true, error: String(err) }),
-    })
-  : undefined;
-if (api && values.listen) {
+async function serve(o: Parameters<typeof createApiServer>[0]) {
+  if (!values.listen) return undefined;
+  const server = createApiServer(o);
   const at = values.listen.lastIndexOf(":");
   const host = at > 0 ? values.listen.slice(0, at) : "127.0.0.1";
   const port = Number(values.listen.slice(at + 1));
-  await new Promise<void>((r) => api.listen(port, host, r));
+  await new Promise<void>((r) => server.listen(port, host, r));
   log({ event: "api_listening", host, port });
+  return server;
 }
+
+/** Watch-only mode: one tower per checkable rollup, one store, then exit. */
+async function runFleet(): Promise<never> {
+  const exclude = (values.exclude ?? "").split(",").filter(Boolean);
+  const chain = restChain(client);
+  const fleet = new Fleet({
+    discover: async () =>
+      values.watch === "all"
+        ? checkable(await client.rest.listRollups(), exclude)
+        : (values.watch ?? "").split(",").filter((id) => id && !exclude.includes(id)),
+    make: (id) =>
+      new Tower({
+        chainId: CHAIN_ID,
+        rollupId: id,
+        archiveDir: join(values.archive, id),
+        chain,
+        store,
+        signer,
+        refreshArchive: refresh(id, join(values.archive, id)),
+        log: (e) => log({ rollup: id, ...e }),
+      }),
+    log,
+  });
+  let reference: RollupSource | undefined;
+  if (values["reference-db"]) {
+    const [id, file] = values["reference-db"].split("=");
+    if (!id || !file) throw new Error("--reference-db takes <rollup>=<file>");
+    reference = { id, store: new TowerStore(file, { readOnly: true }), tier: "stark" };
+  }
+  log({ event: "start", mode: "watch", issuer: signer.issuer, db: dbFile });
+  const server = await serve({
+    store: reference?.store ?? store,
+    rollupId: reference?.id ?? "fleet",
+    rollups: () => [
+      ...(reference ? [reference] : []),
+      ...fleet.ids.map((id) => ({ id, store, tier: "reexec" as const })),
+    ],
+    onError: (err) => log({ event: "api_error", alert: true, error: String(err) }),
+  });
+  const stop = values.duration
+    ? Date.now() + Number(values.duration) * 1000
+    : Number.POSITIVE_INFINITY;
+  while (Date.now() < stop) {
+    const started = Date.now();
+    const r = await fleet.tick();
+    log({ event: "tick", ms: Date.now() - started, ...r });
+    await new Promise((res) => setTimeout(res, Number(values.interval) * 1000));
+  }
+  await new Promise<void>((r) => (server ? server.close(() => r()) : r()));
+  store.close();
+  reference?.store.close();
+  log({ event: "stop" });
+  process.exit(0);
+}
+
+const api = await serve({
+  store,
+  rollupId: rollup,
+  ...(exits ? { exits } : {}),
+  onError: (err) => log({ event: "api_error", alert: true, error: String(err) }),
+});
 const stopAt = values.duration
   ? Date.now() + Number(values.duration) * 1000
   : Number.POSITIVE_INFINITY;

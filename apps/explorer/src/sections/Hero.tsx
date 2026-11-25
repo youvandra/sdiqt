@@ -62,11 +62,12 @@ export function Hero(p: { health: ApiHealthV1 | undefined; error: string | undef
         </h1>
         <p className="t-body hero-sub">
           SDIQT re-executes each batch, proves it with a STARK and signs a receipt with a
-          post-quantum key. The proof stays checkable long after the chain prunes the batch.
+          post-quantum key. The proof stays checkable long after the chain prunes the batch. It also
+          re-executes every other qledger rollup on QoreChain.
         </p>
         <LiveStatus health={p.health} error={p.error} />
-        <Link to="/#batches" className="btn btn-primary hero-cta">
-          Browse Batches
+        <Link to="/#rollups" className="btn btn-primary hero-cta">
+          Browse Rollups
           <ArrowDown size={16} aria-hidden="true" />
         </Link>
       </div>

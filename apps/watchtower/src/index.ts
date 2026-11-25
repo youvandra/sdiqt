@@ -3,6 +3,7 @@ export * from "./bundles.ts";
 export * from "./chain-view.ts";
 export * from "./challenge.ts";
 export * from "./exits.ts";
+export * from "./fleet.ts";
 export * from "./judge.ts";
 export * from "./receipt.ts";
 export * from "./settle.ts";

@@ -133,3 +133,53 @@ export type ApiReceiptV1 = SignedReceiptV1;
 
 /** Body of every non-2xx answer except a stale health check. */
 export const ApiErrorV1 = z.strictObject({ error: z.string().min(1) });
+
+/**
+ * How far SDIQT checks a rollup. `stark`: re-executed and proven by our STARK
+ * (the rollup SDIQT runs). `reexec`: re-executed from its public inbox only.
+ */
+export const CheckTier = z.enum(["stark", "reexec"]);
+export type CheckTier = z.infer<typeof CheckTier>;
+
+/** One row of `GET /api/rollups`: what the towers know about one qledger-v1 rollup. */
+export const ApiRollupSummaryV1 = z.strictObject({
+  rollup_id: z.string().min(1),
+  tier: CheckTier,
+  status: z.enum(["ok", "stale"]),
+  last_poll_at: z.iso.datetime().nullable(),
+  challenge_window_s: DecimalString.nullable(),
+  /** Batch indices seen; `submissions` also counts replaced ones. */
+  batches: DecimalString,
+  submissions: DecimalString,
+  /** Current submission at each index, by re-execution verdict and settlement. */
+  match: DecimalString,
+  mismatch: DecimalString,
+  pending: DecimalString,
+  final: DecimalString,
+  rejected: DecimalString,
+  /** Zero unless the tier is `stark`. */
+  proven: DecimalString,
+  /** Submissions (current or replaced) whose re-execution disagreed with the chain. */
+  mismatches_total: DecimalString,
+  /** Of those, how many QoreChain later rejected (VOID). */
+  mismatches_rejected: DecimalString,
+  last_mismatch: z
+    .strictObject({
+      batch_index: DecimalString,
+      submit_tx: TxHash,
+      settlement: Settlement.or(z.literal("unknown")),
+    })
+    .nullable(),
+  /** Submissions in the 24 hours before the last poll. */
+  submissions_24h: DecimalString,
+  last_submitted_time: z.iso.datetime().nullable(),
+  last_receipt_at: z.iso.datetime().nullable(),
+});
+export type ApiRollupSummaryV1 = z.infer<typeof ApiRollupSummaryV1>;
+
+/** `GET /api/rollups`: every qledger-v1 rollup the towers watch; the reference rollup first. */
+export const ApiRollupListV1 = z.strictObject({
+  reference: z.string().min(1),
+  rollups: z.array(ApiRollupSummaryV1),
+});
+export type ApiRollupListV1 = z.infer<typeof ApiRollupListV1>;
