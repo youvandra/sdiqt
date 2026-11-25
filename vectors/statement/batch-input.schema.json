@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "sdiqt-batch-input"
+    },
+    "version": {
+      "type": "string",
+      "const": "1"
+    },
+    "chain_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rollup_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "batch_index": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "inbox_from": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "acc_from": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})*$"
+    },
+    "parent_accounts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "balance": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "nonce": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "id",
+          "balance",
+          "nonce"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "height": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "poster": {
+            "type": "string",
+            "minLength": 1
+          },
+          "payload": {
+            "type": "string",
+            "pattern": "^([0-9a-f]{2})*$"
+          }
+        },
+        "required": [
+          "height",
+          "poster",
+          "payload"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "chain_id",
+    "rollup_id",
+    "batch_index",
+    "inbox_from",
+    "acc_from",
+    "parent_accounts",
+    "entries"
+  ],
+  "additionalProperties": false
+}

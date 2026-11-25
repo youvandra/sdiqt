@@ -14,6 +14,7 @@
   "scripts": {
     "watchtower": "node src/cli.ts",
     "dev:fixture": "node scripts/dev-fixture.ts",
+    "vectors": "node scripts/exit-vectors.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -28,6 +29,7 @@
     "@sdiqt/verify": "workspace:*"
   },
   "devDependencies": {
+    "@noble/post-quantum": "0.7.1",
     "@types/node": "22.20.5",
     "rolldown": "1.2.19",
     "vitest": "5.1.1"

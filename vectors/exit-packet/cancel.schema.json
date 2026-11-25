@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "body": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "string",
+          "const": "1"
+        },
+        "purpose": {
+          "type": "string",
+          "const": "sdiqt/exit-cancel/v1"
+        },
+        "chain_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rollup_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "account": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "public_key": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{2})*$"
+        },
+        "seq": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        }
+      },
+      "required": [
+        "v",
+        "purpose",
+        "chain_id",
+        "rollup_id",
+        "account",
+        "public_key",
+        "seq"
+      ],
+      "additionalProperties": false
+    },
+    "sig": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})*$"
+    }
+  },
+  "required": [
+    "body",
+    "sig"
+  ],
+  "additionalProperties": false
+}

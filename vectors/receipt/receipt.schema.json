@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "body": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "const": "sdiqt-receipt"
+        },
+        "version": {
+          "type": "string",
+          "const": "1"
+        },
+        "chain_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rollup_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "batch_index": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "prev_state_root": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "state_root": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "withdrawals_root": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{2})*$"
+        },
+        "data_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "inbox_from": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "inbox_end": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "submit_tx": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{2})*$"
+        },
+        "submit_height": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "submitted_time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        "challenge_deadline": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        },
+        "settlement": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "final",
+            "rejected"
+          ]
+        },
+        "validity": {
+          "type": "string",
+          "enum": [
+            "proving",
+            "proven",
+            "mismatch",
+            "unproven"
+          ]
+        },
+        "anchor": {
+          "type": "object",
+          "properties": {
+            "layer_id": {
+              "type": "string"
+            },
+            "layer_height": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          },
+          "required": [
+            "layer_id",
+            "layer_height"
+          ],
+          "additionalProperties": false
+        },
+        "proof": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "statement": {
+                  "type": "string",
+                  "const": "sdiqt-stmt-v1"
+                },
+                "sig_mode": {
+                  "type": "string",
+                  "enum": [
+                    "full",
+                    "v0"
+                  ]
+                },
+                "program_vkey_hash": {
+                  "type": "string",
+                  "pattern": "^([0-9a-f]{2})*$"
+                },
+                "prover_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "chunk_count": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                },
+                "proof_root": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "qstr_sequence": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                },
+                "qstr_tx": {
+                  "type": "string",
+                  "pattern": "^([0-9a-f]{2})*$"
+                }
+              },
+              "required": [
+                "statement",
+                "sig_mode",
+                "program_vkey_hash",
+                "prover_id",
+                "chunk_count",
+                "proof_root",
+                "qstr_sequence",
+                "qstr_tx"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "soundness_note": {
+          "type": "string"
+        },
+        "issued_height": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "issuer": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "format",
+        "version",
+        "chain_id",
+        "rollup_id",
+        "batch_index",
+        "prev_state_root",
+        "state_root",
+        "withdrawals_root",
+        "data_hash",
+        "inbox_from",
+        "inbox_end",
+        "submit_tx",
+        "submit_height",
+        "submitted_time",
+        "challenge_deadline",
+        "settlement",
+        "validity",
+        "anchor",
+        "proof",
+        "soundness_note",
+        "issued_height",
+        "issuer"
+      ],
+      "additionalProperties": false
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})*$"
+    }
+  },
+  "required": [
+    "body",
+    "signature"
+  ],
+  "additionalProperties": false
+}

@@ -44,6 +44,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Generated constants are current
         run: node scripts/gen-constants.mjs --check
+      - name: Spec vectors and schemas are current
+        run: |
+          node packages/protocol/scripts/vectors.ts --check
+          node apps/watchtower/scripts/exit-vectors.ts --check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
