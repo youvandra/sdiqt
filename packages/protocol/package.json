@@ -9,7 +9,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "vectors": "node scripts/vectors.ts"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",

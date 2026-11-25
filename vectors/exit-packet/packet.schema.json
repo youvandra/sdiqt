@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "header": {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "string",
+          "const": "1"
+        },
+        "purpose": {
+          "type": "string",
+          "const": "sdiqt/exit-packet/v1"
+        },
+        "chain_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rollup_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "account": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "public_key": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{2})*$"
+        },
+        "seq": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "nonce": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "release_height": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "tower": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tower_kem_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "v",
+        "purpose",
+        "chain_id",
+        "rollup_id",
+        "account",
+        "public_key",
+        "seq",
+        "nonce",
+        "release_height",
+        "tower",
+        "tower_kem_sha256"
+      ],
+      "additionalProperties": false
+    },
+    "header_sig": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})*$"
+    },
+    "envelope": {
+      "type": "string",
+      "pattern": "^qoreseal:[A-Za-z0-9_-]+$"
+    }
+  },
+  "required": [
+    "header",
+    "header_sig",
+    "envelope"
+  ],
+  "additionalProperties": false
+}
