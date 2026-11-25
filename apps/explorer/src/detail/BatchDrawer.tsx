@@ -3,7 +3,9 @@ import { Archive, Check, Download, Minus, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Badge, Hash, Segmented } from "../components/Ui.tsx";
 import { api, usePolled } from "../lib/api.ts";
+import { bundleName } from "../lib/bundle.ts";
 import { absolute, ago, entries, num, SETTLEMENT, VALIDITY } from "../lib/format.ts";
+import { BrowserVerify } from "./BrowserVerify.tsx";
 
 type Submission = ApiBatchDetailV1["submissions"][number];
 type Tab = "overview" | "proof" | "receipt" | "history";
@@ -300,6 +302,7 @@ function ProofTab({ index, s }: { index: string; s: Submission }) {
           <dd>{s.qstr_tx ? <Hash value={s.qstr_tx} /> : "Not posted"}</dd>
         </dl>
       </Panel>
+      <BrowserVerify index={index} s={s} claim={c} />
       <Panel
         title="Chunks"
         aside={<span className="t-caption">{c.chunks.length} STARK proofs</span>}
@@ -318,12 +321,11 @@ function ProofTab({ index, s }: { index: string; s: Submission }) {
       </Panel>
       <Panel title="Verify it yourself">
         <p className="t-small">
-          Download bundle{" "}
-          <span className="t-mono">{`batch-${index}-${s.submit_tx.slice(0, 12)}`}</span> and run the
-          open-source verifier. It needs no chain access and gives the same answer after QoreChain
-          prunes the batch.
+          Download bundle <span className="t-mono">{bundleName(index, s.submit_tx)}</span> and run
+          the open-source verifier. It needs no chain access and gives the same answer after
+          QoreChain prunes the batch.
         </p>
-        <pre className="cmd">{`sdiqt-verify bundle batch-${index}-${s.submit_tx.slice(0, 12)} \\
+        <pre className="cmd">{`sdiqt-verify bundle ${bundleName(index, s.submit_tx)} \\
   --vkey-hash ${c.program_vkey_hash}`}</pre>
       </Panel>
     </>
