@@ -11,6 +11,8 @@ WorkingDirectory=/srv/sdiqt
 # The box runs UTC+8; every SDIQT log and receipt is UTC.
 Environment=TZ=UTC
 Environment=NODE_ENV=production
+# Lets --exits-post send; the tower's other live path (--challenge) stays off.
+Environment=SDIQT_LIVE=yes
 ExecStart=/usr/bin/node --max-old-space-size=160 /srv/sdiqt/app/bin/sdiqt-watchtower.mjs \
   --rollup sdiqt-1 \
   --archive /srv/sdiqt/data/archive \
@@ -20,7 +22,9 @@ ExecStart=/usr/bin/node --max-old-space-size=160 /srv/sdiqt/app/bin/sdiqt-watcht
   --bundles /srv/sdiqt/bundles \
   --vkey-hash db524751acbbee71eeddae759b6ef92513fe787d8f88585c5d3e38252be32065 \
   --mnemonic-file /srv/sdiqt/secrets/acc-2.mnemonic \
-  --listen 127.0.0.1:8801
+  --listen 127.0.0.1:8801 \
+  --exits-post \
+  --exit-cap-qor 2
 Restart=always
 RestartSec=3
 MemoryHigh=200M
