@@ -1,6 +1,6 @@
 import { ChevronRight, Search } from "lucide-react";
 import { useEffect, useState } from "react";
-import { SectionHead, Segmented, Status } from "../components/Ui.tsx";
+import { Pagination, SectionHead, Segmented, Status } from "../components/Ui.tsx";
 import { type Filter, matches, NO_FILTER } from "../lib/filters.ts";
 import {
   absolute,
@@ -13,6 +13,7 @@ import {
   SETTLEMENT_ORDER,
   shortHash,
 } from "../lib/format.ts";
+import { pageCount } from "../lib/paging.ts";
 import { useRollup } from "../lib/rollup.ts";
 
 const PAGE = 25;
@@ -29,13 +30,19 @@ interface Props {
 export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Props) {
   const { tier } = useRollup();
   const ax = axis(tier);
-  const [limit, setLimit] = useState(PAGE);
+  const [page, setPage] = useState(1);
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new filter starts at the first page
-  useEffect(() => setLimit(PAGE), [filter.settlement, filter.validity, filter.query]);
+  useEffect(() => setPage(1), [filter.settlement, filter.validity, filter.query]);
 
   const newestFirst = [...rows].reverse();
   const shown = newestFirst.filter((r) => matches(r, filter));
   const filtered = filter.settlement !== "all" || filter.validity !== "all" || filter.query !== "";
+  // New batches can shrink nothing, but a filter can: never point past the last page.
+  const current = Math.min(page, pageCount(shown.length, PAGE));
+  const goTo = (n: number) => {
+    setPage(n);
+    document.getElementById("batches")?.scrollIntoView({ block: "start" });
+  };
 
   return (
     <section className="section" id="batches" aria-labelledby="batches-title">
@@ -118,7 +125,7 @@ export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Pro
         )}
 
         <ul className="btable-list" aria-label="Batches">
-          {shown.slice(0, limit).map((r) => (
+          {shown.slice((current - 1) * PAGE, current * PAGE).map((r) => (
             <li key={`${r.batch_index}:${r.submit_tx}`}>
               <Row r={r} onOpen={onOpen} stark={tier === "stark"} />
             </li>
@@ -128,19 +135,14 @@ export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Pro
 
       {shown.length > 0 && (
         <div className="table-foot">
-          <span className="t-small">
-            Showing {num(Math.min(limit, shown.length))} of {num(shown.length)}
-            {filtered ? ` (filtered from ${num(rows.length)})` : ""}
-          </span>
-          {shown.length > limit && (
-            <button
-              type="button"
-              className="btn btn-sm btn-secondary"
-              onClick={() => setLimit((l) => l + PAGE)}
-            >
-              Show More
-            </button>
-          )}
+          <Pagination
+            page={current}
+            size={PAGE}
+            count={shown.length}
+            label="Batch pages"
+            onPage={goTo}
+          />
+          {filtered && <span className="t-small">Filtered from {num(rows.length)} batches</span>}
         </div>
       )}
       <span className="sr-only" aria-live="polite">

@@ -1,6 +1,8 @@
-import { ArrowUpRight, Check, Copy } from "lucide-react";
+import { ArrowUpRight, Check, ChevronLeft, ChevronRight, Copy } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { shortHash, type Tone } from "../lib/format.ts";
+import { useMediaQuery } from "../lib/dom.ts";
+import { num, shortHash, type Tone } from "../lib/format.ts";
+import { pageCount, pageList } from "../lib/paging.ts";
 
 export function Badge({
   tone,
@@ -144,5 +146,68 @@ export function Segmented<T extends string>(p: {
         </button>
       ))}
     </div>
+  );
+}
+
+/** "1-25 of 1,521" plus Previous, page numbers and Next. */
+export function Pagination(p: {
+  page: number;
+  size: number;
+  count: number;
+  label: string;
+  onPage: (page: number) => void;
+}) {
+  const pages = pageCount(p.count, p.size);
+  // Phones show only the current page between first and last, so the row fits.
+  const narrow = useMediaQuery("(max-width: 809px)");
+  const from = p.count === 0 ? 0 : (p.page - 1) * p.size + 1;
+  const to = Math.min(p.count, p.page * p.size);
+  return (
+    <nav className="pager" aria-label={p.label}>
+      <span className="t-small pager-range">
+        {num(from)}-{num(to)} of {num(p.count)}
+      </span>
+      {pages > 1 && (
+        <div className="pager-pages">
+          <button
+            type="button"
+            className="pager-btn"
+            onClick={() => p.onPage(p.page - 1)}
+            disabled={p.page === 1}
+            aria-label="Previous page"
+          >
+            <ChevronLeft size={16} aria-hidden="true" />
+          </button>
+          {pageList(p.page, pages, narrow ? 0 : 1).map((n, i) =>
+            n === null ? (
+              // biome-ignore lint/suspicious/noArrayIndexKey: a gap has no identity of its own
+              <span key={`gap-${i}`} className="pager-gap" aria-hidden="true">
+                …
+              </span>
+            ) : (
+              <button
+                key={n}
+                type="button"
+                className="pager-btn"
+                aria-current={n === p.page ? "page" : undefined}
+                aria-label={`Page ${n}`}
+                onClick={() => p.onPage(n)}
+              >
+                {num(n)}
+              </button>
+            ),
+          )}
+          <button
+            type="button"
+            className="pager-btn"
+            onClick={() => p.onPage(p.page + 1)}
+            disabled={p.page === pages}
+            aria-label="Next page"
+          >
+            <ChevronRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+    </nav>
   );
 }
