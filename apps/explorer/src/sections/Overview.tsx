@@ -1,6 +1,7 @@
 import type { ApiHealthV1, ApiRollupSummaryV1, CountsV1 } from "@sdiqt/protocol";
 import { Hourglass } from "lucide-react";
 import { SectionHead } from "../components/Ui.tsx";
+import { TOUCH, useMediaQuery } from "../lib/dom.ts";
 import type { Filter } from "../lib/filters.ts";
 import {
   axis,
@@ -116,11 +117,16 @@ export function Stat({ value, label, note }: { value: string; label: string; not
   );
 }
 
+/** Cells in the ribbon; touch screens give each cell a 40 px tap target, so fewer fit. */
+const RIBBON_CELLS = 160;
+const RIBBON_CELLS_TOUCH = 49;
+
 /** Every batch in index order: top half settlement, bottom half validity. */
 function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => void }) {
   const { tier } = useRollup();
   const ax = axis(tier);
-  const shown = rows.slice(-160);
+  const touch = useMediaQuery(TOUCH);
+  const shown = rows.slice(-(touch ? RIBBON_CELLS_TOUCH : RIBBON_CELLS));
   return (
     <div className="card card-pad ribbon-card">
       <div className="card-head">

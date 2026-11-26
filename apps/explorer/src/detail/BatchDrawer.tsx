@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Badge, Hash, Segmented } from "../components/Ui.tsx";
 import { usePolled } from "../lib/api.ts";
 import { bundleName } from "../lib/bundle.ts";
+import { SITE, trapTab, useDocumentTitle } from "../lib/dom.ts";
 import { absolute, ago, axis, entries, fieldLabel, num, SETTLEMENT } from "../lib/format.ts";
 import { SITE_URL } from "../lib/links.ts";
 import { useRollup } from "../lib/rollup.ts";
@@ -29,20 +30,32 @@ export function BatchDrawer({
   const detail = usePolled((s) => api.batch(index, s), `batch:${id}:${index}`);
   const [tab, setTab] = useState<Tab>(verify && stark ? "proof" : "overview");
   const closeRef = useRef<HTMLButtonElement>(null);
-
+  const dialogRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+  useDocumentTitle(`Batch ${index} · ${id} · ${SITE}`, true);
+
+  // Modal: focus moves in, Tab stays in, Esc closes, and focus goes back to
+  // the row (or ribbon cell) that opened the drawer.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeRef.current?.focus();
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
+      else if (dialogRef.current) trapTab(dialogRef.current, e);
     };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
+      if (opener && opener !== document.body && opener.isConnected)
+        opener.focus({ preventScroll: true });
     };
-  }, [onClose]);
+  }, []);
 
   const subs = detail.data?.submissions;
   const current = subs?.[subs.length - 1];
@@ -56,7 +69,13 @@ export function BatchDrawer({
         onClick={onClose}
         tabIndex={-1}
       />
-      <aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <aside
+        ref={dialogRef}
+        className="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+      >
         <header className="drawer-head">
           <div className="drawer-title-row">
             <span className="eyebrow">{id}</span>

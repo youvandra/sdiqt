@@ -5,6 +5,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { Badge } from "../components/Ui.tsx";
 import { BatchDrawer } from "../detail/BatchDrawer.tsx";
 import { api, usePolled } from "../lib/api.ts";
+import { SITE, useDocumentTitle } from "../lib/dom.ts";
 import { type Filter, NO_FILTER } from "../lib/filters.ts";
 import { ago, duration, num } from "../lib/format.ts";
 import { RollupProvider, type RollupView, viewOf } from "../lib/rollup.ts";
@@ -112,6 +113,8 @@ function RollupHead(p: {
 }) {
   const stark = p.view.tier === "stark";
   const h = p.health;
+  // Set here, before the drawer below it, so the drawer's title restores to this one.
+  useDocumentTitle(`${p.view.id} · ${SITE}`);
   return (
     <section className="section rollup-head" aria-labelledby="rollup-title">
       <div className="section-head">
