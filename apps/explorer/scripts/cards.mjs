@@ -41,7 +41,8 @@ if (!Array.isArray(rollups) || rollups.length === 0) throw new Error("no rollups
 const sum = (key) => rollups.reduce((n, r) => n + Number(r[key] ?? 0), 0);
 const fmt = (n) => n.toLocaleString("en-US");
 const stats = {
-  proven: `${counts.batches_proven}/${counts.batches}`,
+  // Current batches only: a submission rejected by a fraud proof is replaced at its index.
+  proven: `${counts.batches_proven}/${counts.batches_live}`,
   rollups: rollups.length,
   batches: fmt(sum("batches")),
   wrong: sum("mismatches_total"),
