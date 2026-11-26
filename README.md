@@ -9,11 +9,11 @@
 
 ![SDIQT, proof that outlives the chain](docs/cover.png)
 
-SDIQT gives every batch of a QoreChain qledger rollup a hash-based STARK proof that anyone can check in a browser. On the diana testnet, all 14 batches of the rollup `sdiqt-1` are proven, two withdrawals were paid from proven batches, and one of them reached the chain through a sealed ML-KEM exit packet. A wrong-root batch staged on purpose was rejected by a fraud proof 7 s after it landed. The same watchtower re-executes every other qledger-v1 rollup on diana from its public inbox: 11 rollups and 1,640 batches checked, 14 mismatching submissions found, and QoreChain rejected all 14.
+SDIQT gives every batch of a QoreChain qledger rollup a hash-based STARK proof that anyone can check in a browser. On the diana testnet, all 18 current batches of the rollup `sdiqt-1` are proven, two withdrawals were paid from proven batches, and one of them reached the chain through a sealed ML-KEM exit packet. A wrong-root batch staged on purpose was rejected by a fraud proof 7 s after it landed. The same watchtower re-executes every other qledger-v1 rollup on diana from its public inbox: 11 rollups and 1,644 batches checked, 14 mismatching submissions found, and QoreChain rejected all 14.
 
 **Live:** https://sdiqt.xyz · **Video:** _placeholder, the link is added at submission_ · **Evidence:** [PROOF.md](PROOF.md)
 
-The `sdiqt-1` evidence in this README comes from [PROOF.md](PROOF.md) and [`docs/counts.json`](docs/counts.json), a snapshot at diana height 10782458 (26 Nov 2026 10:09 UTC) that `scripts/proof.mjs` recomputes from chain. Coverage numbers come from [`/api/rollups`](https://sdiqt.xyz/api/rollups) as of 26 Nov 2026 10:10 UTC.
+The `sdiqt-1` evidence in this README comes from [PROOF.md](PROOF.md) and [`docs/counts.json`](docs/counts.json), a snapshot at diana height 10799151 (26 Nov 2026 16:46 UTC) that `scripts/proof.mjs` recomputes from chain. Coverage numbers come from [`/api/rollups`](https://sdiqt.xyz/api/rollups) as of 26 Nov 2026 16:46 UTC.
 
 ## The problem
 
@@ -65,7 +65,7 @@ As of 26 Nov 2026 10:10 UTC, from [`/api/rollups`](https://sdiqt.xyz/api/rollups
 
 | Rollup | Tier | Batches checked | Re-execution match | Mismatching submissions | Rejected by QoreChain |
 |---|---|---|---|---|---|
-| `sdiqt-1` | STARK | 14 | 14 | 1 | 1 |
+| `sdiqt-1` | STARK | 18 | 18 | 1 | 1 |
 | `augury-oracle` | Re-execution | 0 | 0 | 0 | 0 |
 | `ledgerpump` | Re-execution | 5 | 5 | 1 | 1 |
 | `rdk-v328-e2e-mwd5v89d` | Re-execution | 7 | 7 | 2 | 2 |
@@ -76,7 +76,7 @@ As of 26 Nov 2026 10:10 UTC, from [`/api/rollups`](https://sdiqt.xyz/api/rollups
 | `vigil-1` | Re-execution | 36 | 36 | 4 | 4 |
 | `vigil-pay-1` | Re-execution | 23 | 23 | 2 | 2 |
 | `wicketgate-pay` | Re-execution | 0 | 0 | 0 | 0 |
-| **Total, 11 rollups** | | **1,640** | **1,640 (100%)** | **14** | **14** |
+| **Total, 11 rollups** | | **1,644** | **1,644 (100%)** | **14** | **14** |
 
 "Batches checked" counts the current submission at each batch index. Each of the 14 mismatching submissions claimed roots that differ from a re-execution of its inbox range; QoreChain rejected each one through an upheld fraud proof, and a later submission at the same index took its place, so the 1,654 submissions on record are the 1,640 current batches plus those 14. The `sdiqt-1` mismatch is the staged batch described under [Evidence](#evidence). On `sdiqt-1`, all 14 current batches are proven by a STARK; the median time from batch submit to QSTR post is 2 min 15 s ([PROOF.md](PROOF.md)).
 
@@ -133,19 +133,19 @@ Every setup transaction, with height and the check that ran on it, is in [PROOF.
 
 ## Evidence
 
-At height 10782458 ([PROOF.md](PROOF.md)):
+At height 10799151 ([PROOF.md](PROOF.md)):
 
 | Count | Value |
 |---|---|
-| Batch submissions / current batches proven / final | 15 / 14 / 11 |
+| Batch submissions / current batches proven / final | 19 / 18 / 17 |
 | Submissions rejected by a challenge | 1 (the staged batch 12) |
-| User entries (deposits / transfers / withdrawals) | 15 (2 / 11 / 2) |
-| QSTR commitments posted | 14 |
+| User entries (deposits / transfers / withdrawals) | 19 (2 / 15 / 2) |
+| QSTR commitments posted | 18 |
 | Setup, withdrawal, exit and fraud claims checked against chain | 13 of 13 |
-| Median time from batch submit to QSTR post | 2 min 15 s |
+| Median time from batch submit to QSTR post | 2 min 16 s |
 | Longest time from batch submit to QSTR post | 663 min 21 s |
 
-Batches 3 to 8 and 10 to 13 went from submit to QSTR in 2 min 3 s to 3 min 45 s. Batches 0 to 2 waited in the prove queue for a fix. Batch 9 was submitted while the prover machine was shutting down; the saved job resumed on restart and proved it 663 min later, by which time the batch was already final.
+Batches 3 to 8 and 10 to 17 went from submit to QSTR in 2 min 3 s to 5 min 13 s. Batches 0 to 2 waited in the prove queue for a fix. Batch 9 was submitted while the prover machine was shutting down; the saved job resumed on restart and proved it 663 min later, by which time the batch was already final.
 
 Two withdrawals were paid. The demo user posted a signed 2 QOR withdrawal in batch 3 (tx `18EE89B6…`), and after batch 3 was final `MsgExecuteWithdrawal` paid it (tx `D4E2A450…`, height 10728212). For the second, the demo user sealed a signed 2.5 QOR withdrawal to the watchtower's ML-KEM-1024 key with release height 10738199. The watchtower opened it at that height and posted it in batch 5 (tx `C451E059…`), and after batch 5 was final `MsgExecuteWithdrawal` paid it (tx `E9C47252…`, height 10779352).
 
@@ -192,11 +192,11 @@ Recompute PROOF.md from chain (from the repo root; `--check` fails if any number
 ```bash
 pnpm install --frozen-lockfile
 node apps/archiver/src/cli.ts --rollup sdiqt-1 --from-height 10720040
-node scripts/proof.mjs --bundles https://sdiqt.xyz/bundles --at-height 10782458 --check
+node scripts/proof.mjs --bundles https://sdiqt.xyz/bundles --at-height 10799151 --check
 ```
 
 ```text
-{"snapshot_height":"10782458","batches":15,"proven":14,"final":11,"claims_ok":"13/13","changed":0}
+{"snapshot_height":"10799151","batches":19,"proven":18,"final":17,"claims_ok":"13/13","changed":0}
 ```
 
 Tests: `pnpm test` for TypeScript and `cargo test` for Rust.
@@ -229,7 +229,7 @@ Tests: `pnpm test` for TypeScript and `cargo test` for Rust.
 | ML-DSA-signed batches | Operator ML-DSA-87 key registered (tx `4FAC7406…`), every batch hybrid signed; user entries ML-DSA-44, checked inside each STARK. [PROOF.md](PROOF.md) |
 | Withdrawal | 2 QOR from batch 3 paid by `MsgExecuteWithdrawal` (tx `D4E2A450…`); 2.5 QOR from a sealed exit in batch 5 paid (tx `E9C47252…`). [PROOF.md](PROOF.md#setup-on-chain) |
 | Settlement receipt | Watchtower ML-DSA-87 key registered (tx `BDA2DF6F…`); receipts at `https://sdiqt.xyz/api/receipts/<batch>`, shown on each batch in the explorer |
-| Watchtower | Re-executes and verifies every batch; re-executes the other 10 qledger-v1 rollups on diana too, 1,640 batches across all 11 as of 26 Nov 2026 ([coverage](#every-qledger-rollup-on-diana)); staged wrong-root batch 12 rejected on chain by a fraud proof 7 s after submit (tx `A93FED3A…`, sent by an independent challenger) and recorded as a mismatch in our receipt; challenge path in [`apps/watchtower/src/challenge.ts`](apps/watchtower/src/challenge.ts), live with `--challenge` |
+| Watchtower | Re-executes and verifies every batch; re-executes the other 10 qledger-v1 rollups on diana too, 1,644 batches across all 11 as of 26 Nov 2026 ([coverage](#every-qledger-rollup-on-diana)); staged wrong-root batch 12 rejected on chain by a fraud proof 7 s after submit (tx `A93FED3A…`, sent by an independent challenger) and recorded as a mismatch in our receipt; challenge path in [`apps/watchtower/src/challenge.ts`](apps/watchtower/src/challenge.ts), live with `--challenge` |
 | ML-KEM data protection | Watchtower ML-KEM-1024 key registered (tx `6FB680F1…`); a sealed exit packet opened at its release height and posted (tx `C451E059…`), then paid (tx `E9C47252…`); [spec](specs/exit-packet-v1.md) |
 | Threat model | [THREAT_MODEL.md](THREAT_MODEL.md), [LIMITS.md](LIMITS.md) |
 
