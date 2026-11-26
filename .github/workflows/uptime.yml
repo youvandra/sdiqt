@@ -1,7 +1,8 @@
 name: uptime
 
 # External check of the public watchtower: fails (and mails the repo owner)
-# when sdiqt.xyz is down, the tower reports a problem, or its last poll is stale.
+# when sdiqt.xyz is down, the tower or any watched rollup reports a problem, or a
+# last poll is stale.
 on:
   schedule:
     - cron: "*/10 * * * *"
@@ -46,6 +47,53 @@ jobs:
             exit 1
           fi
           echo "ok: lag ${lag}s"
+      - name: Fleet of rollups
+        env:
+          BASE: https://sdiqt.xyz
+          # The fleet ticks every 60 s (deploy/systemd/sdiqt-fleet.service) and a
+          # rollup reports "stale" after 300 s; 600 s also covers a slow rediscover pass.
+          MAX_AGE_S: "600"
+        run: |
+          set -euo pipefail
+          body=""
+          for attempt in 1 2 3; do
+            if body=$(curl -fsS --max-time 15 "$BASE/api/rollups"); then break; fi
+            body=""
+            sleep 20
+          done
+          if [ -z "$body" ]; then
+            echo "::error::$BASE/api/rollups unreachable after 3 attempts"
+            exit 1
+          fi
+          echo "$body" | jq -r '.rollups[] | [.rollup_id, .tier, .status, .batches, .last_poll_at] | @tsv'
+          count=$(echo "$body" | jq '.rollups | length')
+          if [ "$count" -eq 0 ]; then
+            echo "::error::/api/rollups lists no rollups"
+            exit 1
+          fi
+          bad=$(echo "$body" | jq -r '.rollups[] | select(.status != "ok") | "\(.rollup_id)=\(.status)"')
+          if [ -n "$bad" ]; then
+            echo "::error::rollups not ok: $(echo $bad)"
+            exit 1
+          fi
+          stale=$(echo "$body" | jq -r --argjson max "$MAX_AGE_S" '
+            .rollups[]
+            | select(.last_poll_at == null
+                or (now - (.last_poll_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601)) > $max)
+            | "\(.rollup_id)=\(.last_poll_at)"')
+          if [ -n "$stale" ]; then
+            echo "::error::last poll older than ${MAX_AGE_S}s: $(echo $stale)"
+            exit 1
+          fi
+          reexec=$(echo "$body" | jq -r '[.rollups[] | select(.tier == "reexec")][0].rollup_id // empty')
+          for path in /api/r/sdiqt-1/health ${reexec:+/api/r/$reexec/batches} /r/sdiqt-1; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$BASE$path")
+            if [ "$code" != "200" ]; then
+              echo "::error::$path returned $code"
+              exit 1
+            fi
+          done
+          echo "ok: $count rollups"
       - name: Proof bundles served
         run: |
           set -euo pipefail
