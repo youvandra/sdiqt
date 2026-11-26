@@ -1,0 +1,72 @@
+name: release
+
+# release-please keeps a release pull request open on main. Merging it creates
+# a draft GitHub release and its tag; the bundles job then attaches the proof
+# bundles of every proven batch in PROOF.md and publishes the release.
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          # A token other than GITHUB_TOKEN makes the release pull request start
+          # the required checks; see CONTRIBUTING.md, Releases.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  bundles:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.release-please.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download and check bundles
+        run: node scripts/release-bundles.mjs --bundles https://sdiqt.xyz/bundles --out "dist/sdiqt-proof-bundles-$TAG"
+      - name: Pack
+        run: |
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner \
+            -C dist -cf - "sdiqt-proof-bundles-$TAG" | gzip -n > "dist/sdiqt-proof-bundles-$TAG.tar.gz"
+          cp "dist/sdiqt-proof-bundles-$TAG/SHA256SUMS" "dist/sdiqt-proof-bundles-$TAG.SHA256SUMS"
+          (cd dist && sha256sum "sdiqt-proof-bundles-$TAG.tar.gz" > "sdiqt-proof-bundles-$TAG.tar.gz.sha256")
+      - name: Attach and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "$TAG" --clobber \
+            "dist/sdiqt-proof-bundles-$TAG.tar.gz" \
+            "dist/sdiqt-proof-bundles-$TAG.tar.gz.sha256" \
+            "dist/sdiqt-proof-bundles-$TAG.SHA256SUMS"
+          gh release edit "$TAG" --draft=false --latest

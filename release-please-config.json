@@ -1,0 +1,70 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/v17.6.0/schemas/config.json",
+  "release-type": "simple",
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": false,
+  "initial-version": "0.1.0",
+  "draft": true,
+  "force-tag-creation": true,
+  "pull-request-title-pattern": "chore: release ${version}",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance" },
+    { "type": "ui", "section": "Interface" },
+    { "type": "revert", "section": "Reverts" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "refactor", "section": "Refactoring", "hidden": true },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "build", "section": "Build", "hidden": true },
+    { "type": "ci", "section": "CI", "hidden": true },
+    { "type": "chore", "section": "Chores", "hidden": true }
+  ],
+  "packages": {
+    ".": {
+      "package-name": "sdiqt",
+      "extra-files": [
+        { "type": "json", "path": "apps/archiver/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "apps/explorer/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "apps/operator/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "apps/watchtower/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/chain/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/protocol/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/verify/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "redteam/package.json", "jsonpath": "$.version" },
+        {
+          "type": "toml",
+          "path": "crates/qledger-core/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/sdiqt-statement/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/sdiqt-guest/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/sdiqt-prover/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/sdiqt-verify/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.lock",
+          "jsonpath": "$.package[?(@.name.value === 'qledger-core' || @.name.value === 'sdiqt-statement' || @.name.value === 'sdiqt-guest' || @.name.value === 'sdiqt-prover' || @.name.value === 'sdiqt-verify')].version"
+        }
+      ]
+    }
+  }
+}
