@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import {
+  addressUrl,
   CHAIN_ID,
   LICENSE_URL,
   NOBLE_URL,
@@ -30,7 +31,7 @@ export function Footer() {
             <dd className="t-mono">sdiqt-1</dd>
             <dt>Operator</dt>
             <dd>
-              <Hash value={OPERATOR} head={10} tail={6} />
+              <Hash value={OPERATOR} head={10} tail={6} href={addressUrl(OPERATOR)} />
             </dd>
           </dl>
         </div>
