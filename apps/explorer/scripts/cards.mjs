@@ -21,7 +21,7 @@ const ROOT = join(APP, "../..");
 const MIME = { png: "image/png", woff2: "font/woff2" };
 const assets = {};
 for (const p of [
-  "fonts/InterVariable.woff2",
+  "fonts/InterVariable-latin.woff2",
   "fonts/JetBrainsMono.woff2",
   "brand/hero.png",
   "brand/noise.png",
@@ -35,7 +35,7 @@ const mark =
 
 function page(height) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-@font-face { font-family: Inter; font-weight: 100 900; src: url("${asset("fonts/InterVariable.woff2")}") format("woff2"); }
+@font-face { font-family: Inter; font-weight: 100 900; src: url("${asset("fonts/InterVariable-latin.woff2")}") format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; src: url("${asset("fonts/JetBrainsMono.woff2")}") format("woff2"); }
 * { box-sizing: border-box; margin: 0; }
 html, body { width: 1200px; height: ${height}px; background: #000; color: #fff; overflow: hidden; }
