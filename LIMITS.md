@@ -92,4 +92,4 @@ An 11-entry chunk (11.6M cycles) fails during compression on this machine, which
 | Post retries for a released packet | 3 | `specs/exit-packet-v1.md` |
 | Daily spend caps (defaults) | operator 50 QOR, tower challenge 1,050 QOR, tower exit posts 2 QOR | `apps/operator/src/cli.ts`; `apps/watchtower/src/cli.ts` |
 | Tower process memory | at most 256 MB | `deploy/systemd/sdiqt-watchtower.service` |
-| Challenge path in the deployed tower | off (`--challenge` not set) | `deploy/systemd/sdiqt-watchtower.service` |
+| Challenge path in the deployed tower | on since 26 Nov 2026 (`--challenge`, 30 s poll); in the staged run an independent challenger was faster | `deploy/systemd/sdiqt-watchtower.service` |

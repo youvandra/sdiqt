@@ -5,7 +5,8 @@
     "operator": "qor17fhcxn83a0l9lqs8dmyesp5xeqdxsphu0j87x3",
     "watchtower": "qor1uelq3hzhnt6q6g7qts2uhscwct6l87yu48zczh",
     "demo_user": "qor1lk7fdflxvyxes9tudqzgkm65uss2pf5ehh6q63",
-    "fest": "qor1al5y6d68tcxnfvfnejpfaxfuy7cdyqrs9gyavc"
+    "fest": "qor1al5y6d68tcxnfvfnejpfaxfuy7cdyqrs9gyavc",
+    "independent_challenger": "qor1axgklr83mx8y0aluc5vgqrpw7uktwq7cu5nnhp"
   },
   "claims": [
     {
@@ -77,12 +78,33 @@
       "tx": "E9C47252AEF6E76E98B240A48757E9A397AEC734A42941501D312F384EEC3F3E",
       "action": "/qorechain.rdk.v1.MsgExecuteWithdrawal",
       "signer": "demo_user"
+    },
+    {
+      "id": "staged-wrong-root",
+      "claim": "The operator submitted batch 12 on purpose with the last byte of its state root flipped (gate G3, armed by a typed confirmation)",
+      "tx": "B503A9D0ED7A273F0A7BF16CB796F4E30669BEA1E6FD77EFD35E824351DC65D7",
+      "action": "/qorechain.rdk.v1.MsgSubmitBatch",
+      "signer": "operator"
+    },
+    {
+      "id": "staged-fraud-upheld",
+      "claim": "An independent challenger's qledger fraud proof rejected the staged batch 12 seven seconds after it landed; the chain slashed the operator's 1,000 QOR bond (500 burned, 500 to the challenger) and rolled the inbox back",
+      "tx": "A93FED3A90776DEA7084A8B4C7F3CF33A533BD71CD2686D297B16E7C9DFA82F6",
+      "action": "/qorechain.rdk.v1.MsgChallengeBatch",
+      "signer": "independent_challenger"
+    },
+    {
+      "id": "submitter-rebonded",
+      "claim": "The operator bonded 1,000 QOR again and resubmitted batch 12 with the correct root",
+      "tx": "9C21B7563494C123B3FD76312538EE7751BAD66E9D7DB3DFAB6048BBC98FD488",
+      "action": "/qorechain.rdk.v1.MsgBondRollupSubmitter",
+      "signer": "operator"
     }
   ],
   "open": [
     {
       "requirement": "Watchtower challenge",
-      "plan": "staged wrong-root batch challenged by the watchtower, bond slashed, receipt VOID"
+      "plan": "our watchtower's own MsgChallengeBatch on diana; in the staged run (batch 12) an independent challenger reached the chain 7 s after the submit, and our tower, polling every 30 s, recorded the rejection and the root mismatch in its receipt"
     }
   ]
 }
