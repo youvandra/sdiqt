@@ -27,7 +27,7 @@ test("list, batch, browser verify, flip one byte", async ({ page }) => {
   const index = await latestProven(page);
 
   await page.goto("/");
-  await expect(page).toHaveTitle("SDIQT Explorer");
+  await expect(page).toHaveTitle("SDIQT · Proof that outlives the chain");
   const rollups = page.getByRole("list", { name: "Rollups" });
   await expect(rollups.getByRole("link")).not.toHaveCount(0);
   await rollups.getByRole("link").filter({ hasText: "sdiqt-1" }).click();
@@ -45,7 +45,7 @@ test("list, batch, browser verify, flip one byte", async ({ page }) => {
   await drawer.getByRole("button", { name: "Proof", exact: true }).click();
   await drawer.getByRole("button", { name: "Verify Proof" }).click();
   await expect(drawer.getByText("Valid", { exact: true })).toBeVisible({ timeout: 90_000 });
-  await expect(drawer.getByText(/All \d+ fields equal/)).toBeVisible();
+  await expect(drawer.getByText(/All \d+ fields match the chain/)).toBeVisible();
 
   await drawer.getByRole("button", { name: "Flip One Byte" }).click();
   await expect(drawer.getByText(/Tampered copy rejected in/)).toBeVisible({ timeout: 90_000 });
@@ -69,16 +69,16 @@ test("an other team's rollup shows re-execution only", async ({ page }) => {
 
   await page.goto("/");
   const rollups = page.getByRole("list", { name: "Rollups" });
-  await expect(rollups.getByText("STARK + Re-execution", { exact: true })).toHaveCount(1);
-  await expect(rollups.getByText("Re-execution", { exact: true })).not.toHaveCount(0);
+  await expect(rollups.getByText("STARK + Re-executed", { exact: true })).toHaveCount(1);
+  await expect(rollups.getByText("Re-executed", { exact: true })).not.toHaveCount(0);
   await rollups.getByRole("link").filter({ hasText: id }).first().click();
   await expect(page).toHaveURL(new RegExp(`/r/${id}$`));
 
   const head = page.locator("section.rollup-head");
   await expect(head.getByRole("heading", { name: id, exact: true })).toBeVisible();
-  await expect(head.getByText("Re-execution", { exact: true })).toBeVisible();
-  await expect(head.getByText("STARK + Re-execution")).toHaveCount(0);
+  await expect(head.getByText("Re-executed", { exact: true })).toBeVisible();
+  await expect(head.getByText("STARK + Re-executed")).toHaveCount(0);
   await expect(page.getByText("Proven by a STARK")).toHaveCount(0);
-  await expect(page.getByText("Re-executed: match")).toBeVisible();
+  await expect(page.getByText("Roots Match", { exact: true })).toBeVisible();
   await expect(page.getByRole("list", { name: "Batches" }).getByRole("button")).not.toHaveCount(0);
 });

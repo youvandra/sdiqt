@@ -107,7 +107,7 @@ export function BatchDrawer({
               </Badge>
               {current.pruned && (
                 <Badge tone="accent" title="QoreChain pruned this batch record">
-                  Read From Archive
+                  From Archive
                 </Badge>
               )}
               <span className="t-small">
@@ -132,7 +132,7 @@ export function BatchDrawer({
         <div className="drawer-body">
           {detail.error && !current && (
             <div className="notice" data-tone="bad" role="alert">
-              Batch {index} is unreachable: {detail.error}
+              Batch {index} cannot be read right now.
             </div>
           )}
           {!current && !detail.error && <p className="t-body">Reading batch {index}</p>}
@@ -197,8 +197,7 @@ function OverviewTab({ s, stark }: { s: Submission; stark: boolean }) {
       {!stark && (
         <div className="notice" data-tone="accent" role="note">
           <span>
-            SDIQT re-executes this rollup from its public inbox and signs a receipt with the result.
-            STARK proofs run on sdiqt-1, the reference rollup, so this receipt says unproven.
+            This rollup gets re-execution and a signed receipt. STARK proofs run on sdiqt-1.
           </span>
         </div>
       )}
@@ -247,7 +246,7 @@ function OverviewTab({ s, stark }: { s: Submission; stark: boolean }) {
                     )}
                     {differs && r.key === "stateRoot" && honest && (
                       <span className="roots-honest t-caption">
-                        Honest <Hash value={honest} head={6} tail={4} />
+                        Correct root <Hash value={honest} head={6} tail={4} />
                       </span>
                     )}
                   </span>
@@ -271,7 +270,7 @@ function OverviewTab({ s, stark }: { s: Submission; stark: boolean }) {
 
       <Panel title="Settlement">
         <dl className="kv">
-          <dt>State</dt>
+          <dt>Status</dt>
           <dd>
             {SETTLEMENT[s.settlement].label}
             <span className="kv-hint">{SETTLEMENT[s.settlement].hint}</span>
@@ -338,8 +337,8 @@ function ProofTab({ index, s, autoVerify }: { index: string; s: Submission; auto
           <dt>Signature mode</dt>
           <dd>
             {c.sig_mode === "full"
-              ? "Full: ML-DSA-44 checked inside the proof"
-              : "v0: signatures checked outside"}
+              ? "Full, ML-DSA-44 checked inside the proof"
+              : "v0, signatures checked outside the proof"}
           </dd>
           <dt>Program key</dt>
           <dd>
@@ -487,8 +486,8 @@ function ReceiptActions({ index, receipt }: { index: string; receipt: ApiReceipt
 }
 
 const CHALLENGE_LABEL: Record<NonNullable<Submission["challenge"]>["status"], string> = {
-  watch: "Watching, challenge sending is off",
-  refused: "Not challenged",
+  watch: "Watch only",
+  refused: "Skipped",
   failed: "Challenge failed",
   sent: "Challenge sent",
   upheld: "Challenge upheld",

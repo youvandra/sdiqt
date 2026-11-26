@@ -13,7 +13,7 @@ export function shortHash(h: string, head = 8, tail = 6): string {
 export const SETTLEMENT: Record<Settlement, { label: string; tone: Tone; hint: string }> = {
   pending: { label: "Pending", tone: "wait", hint: "Inside its challenge window on QoreChain" },
   final: { label: "Final", tone: "ok", hint: "Challenge window closed, QoreChain finalized it" },
-  rejected: { label: "Void", tone: "bad", hint: "Rolled back by an upheld fraud proof" },
+  rejected: { label: "Rejected", tone: "bad", hint: "Rejected by an upheld fraud proof" },
   unknown: {
     label: "Unknown",
     tone: "wait",
@@ -56,7 +56,7 @@ const REEXEC: Partial<Record<Validity, { label: string; tone: Tone; hint: string
   unproven: {
     label: "Match",
     tone: "ok",
-    hint: "Re-execution from the public inbox gives the chain's roots",
+    hint: "Re-execution from chain data gives the chain's roots",
   },
   mismatch: VALIDITY.mismatch,
 };

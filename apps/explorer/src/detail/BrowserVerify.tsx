@@ -154,7 +154,7 @@ export function BrowserVerify({
                 ? "wait"
                 : "ok"
           }
-          label="Download bundle"
+          label="Download the bundle"
           detail={
             state.step === "download"
               ? mb(state.loaded)
@@ -173,7 +173,7 @@ export function BrowserVerify({
                   : "bad"
                 : "wait"
           }
-          label="Verify every chunk, the links and the proof root"
+          label="Check every chunk and how they link"
           detail={
             state.step === "done"
               ? state.verdict.valid
@@ -190,11 +190,11 @@ export function BrowserVerify({
                 : "bad"
               : "wait"
           }
-          label="Match the proven roots with the chain roots"
+          label="Compare the proven roots with the chain"
           detail={
             state.step === "done" && state.verdict.valid
               ? state.chainDiffs.length === 0
-                ? "All 7 fields equal"
+                ? "All 7 fields match the chain"
                 : `Differs: ${state.chainDiffs.map(fieldLabel).join(", ")}`
               : undefined
           }
@@ -251,8 +251,8 @@ export function BrowserVerify({
               </span>
               <span className="t-small">
                 Bit 0 of byte {num(flip.offset)} in chunk 0 flipped, chunk hash recomputed so only
-                the STARK check can catch it. Verifier:{" "}
-                <span className="t-mono flip-error">{flip.verdict.error ?? "accepted"}</span>
+                the STARK check can catch it. The verifier reports{" "}
+                <span className="t-mono flip-error">{flip.verdict.error ?? "accepted"}</span>.
               </span>
             </>
           )}

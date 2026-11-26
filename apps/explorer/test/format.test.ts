@@ -21,8 +21,8 @@ describe("format", () => {
     expect(ago("2026-11-24T21:00:00Z", now)).toBe("3 h ago");
   });
 
-  it("labels a rejected batch Void and a proven one Proven", () => {
-    expect(SETTLEMENT.rejected).toMatchObject({ label: "Void", tone: "bad" });
+  it("labels a rejected batch Rejected and a proven one Proven", () => {
+    expect(SETTLEMENT.rejected).toMatchObject({ label: "Rejected", tone: "bad" });
     expect(VALIDITY.proven).toMatchObject({ label: "Proven", tone: "ok" });
   });
 

@@ -1,14 +1,14 @@
 import { Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { REPO_URL } from "../lib/links.ts";
+import { PROOF_URL, REPO_URL } from "../lib/links.ts";
 import { GitHubMark } from "./Icons.tsx";
 import { Logo } from "./Logo.tsx";
 
 export const SECTIONS = [
-  { id: "rollups", label: "Rollups" },
-  { id: "how-it-works", label: "How It Works" },
   { id: "verify", label: "Verify" },
+  { id: "how-it-works", label: "How It Works" },
+  { id: "rollups", label: "Rollups" },
   { id: "security", label: "Security" },
 ] as const;
 
@@ -21,7 +21,7 @@ function useActiveSection(enabled: boolean): string | undefined {
       let current: string | undefined;
       for (const s of SECTIONS) {
         const el = document.getElementById(s.id);
-        if (el && el.getBoundingClientRect().top <= 120) current = s.id;
+        if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.4) current = s.id;
       }
       setActive(current);
     };
@@ -70,6 +70,9 @@ export function Nav() {
               {s.label}
             </Link>
           ))}
+          <a className="nav-link" href={PROOF_URL} target="_blank" rel="noreferrer">
+            Evidence
+          </a>
         </nav>
         <div className="nav-end">
           <a
@@ -101,6 +104,12 @@ export function Nav() {
               {s.label}
             </Link>
           ))}
+          <a className="t-large" href={PROOF_URL} target="_blank" rel="noreferrer">
+            Evidence
+          </a>
+          <a className="t-large" href={REPO_URL} target="_blank" rel="noreferrer">
+            Source on GitHub
+          </a>
         </nav>
       )}
     </header>
