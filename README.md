@@ -9,7 +9,7 @@
 
 ![SDIQT, proof that outlives the chain](docs/cover.png)
 
-SDIQT gives every batch of a QoreChain qledger rollup a hash-based STARK proof that anyone can check in a browser. On the diana testnet, all 18 current batches of the rollup `sdiqt-1` are proven, two withdrawals were paid from proven batches, and one of them reached the chain through a sealed ML-KEM exit packet. A wrong-root batch staged on purpose was rejected by a fraud proof 7 s after it landed. The same watchtower re-executes every other qledger-v1 rollup on diana from its public inbox: 11 rollups and 1,644 batches checked, 14 mismatching submissions found, and QoreChain rejected all 14.
+SDIQT gives every batch of a QoreChain qledger rollup a hash-based STARK proof that anyone can check in a browser. On the diana testnet all 18 current `sdiqt-1` batches are proven, two withdrawals were paid, one through a sealed ML-KEM exit, and a wrong root we staged was rejected 7 s after it landed. The same watchtower re-executes every qledger-v1 rollup on diana: 11 rollups, 1,644 batches, 14 wrong roots found and all 14 rejected by QoreChain.
 
 **Live:** https://sdiqt.xyz · **Video:** _placeholder, the link is added at submission_ · **Evidence:** [PROOF.md](PROOF.md)
 
