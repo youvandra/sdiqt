@@ -72,7 +72,17 @@ async function tx(hash) {
     signers: [
       ...new Set(
         r.tx.body.messages.flatMap((m) =>
-          ["sender", "creator", "submitter", "sequencer", "poster", "depositor", "from_address"]
+          [
+            "sender",
+            "creator",
+            "submitter",
+            "sequencer",
+            "poster",
+            "depositor",
+            "challenger",
+            "resolver",
+            "from_address",
+          ]
             .map((k) => m[k])
             .filter(Boolean),
         ),

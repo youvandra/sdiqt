@@ -5,6 +5,8 @@
  *   - in-page anchors (`/#id`, `#id`) name an element on the page,
  *   - internal routes render their own page (not the 404 page),
  *   - external links answer below HTTP 400.
+ * Pages: the home page, the explorer (/rollups), the legal pages, /r/sdiqt-1 and the re-execution-only
+ * rollup with the most batches, read from /api/rollups.
  *
  *   node apps/explorer/scripts/check-links.mjs [base] (default http://localhost:5320)
  *   CHROME=/path/to/chrome overrides the browser.
@@ -17,7 +19,34 @@ import { join } from "node:path";
 const BASE = (process.argv[2] ?? "http://localhost:5320").replace(/\/$/, "");
 const CHROME = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PROFILE = mkdtempSync(join(tmpdir(), "sdiqt-links-"));
-const PAGES = ["/", "/r/sdiqt-1", "/privacy", "/terms"];
+const failures = [];
+
+/** The re-execution-only rollup with the most batches, so its page has rows and links. */
+async function reexecRollup() {
+  try {
+    const res = await fetch(`${BASE}/api/rollups`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { rollups } = await res.json();
+    const best = rollups
+      .filter((r) => r.tier === "reexec")
+      .sort((a, b) => Number(b.batches) - Number(a.batches))[0];
+    if (!best) throw new Error("no re-execution-only rollup listed");
+    return best.rollup_id;
+  } catch (err) {
+    failures.push(`/api/rollups: ${err.message}`);
+    return null;
+  }
+}
+
+const reexec = await reexecRollup();
+const PAGES = [
+  "/",
+  "/r/sdiqt-1",
+  ...(reexec ? [`/r/${encodeURIComponent(reexec)}`] : []),
+  "/rollups",
+  "/privacy",
+  "/terms",
+];
 
 function render(path) {
   return execFileSync(
@@ -38,7 +67,6 @@ const hrefs = (html) =>
   [...html.matchAll(/<a\b[^>]*\shref="([^"]*)"/g)].map((m) => m[1].replaceAll("&amp;", "&"));
 const isNotFound = (html) => /<span class="eyebrow">404<\/span>/.test(html);
 
-const failures = [];
 const seenExternal = new Map();
 const rendered = new Map();
 const page = (p) => {
@@ -77,7 +105,7 @@ await Promise.all(
 );
 
 const total = PAGES.reduce((n, p) => n + hrefs(page(p)).length, 0);
-console.log(`checked ${total} links on ${PAGES.length} pages (${seenExternal.size} external)`);
+console.log(`checked ${total} links on ${PAGES.join(", ")} (${seenExternal.size} external)`);
 if (failures.length) {
   for (const f of failures) console.log(`FAIL ${f}`);
   process.exit(1);

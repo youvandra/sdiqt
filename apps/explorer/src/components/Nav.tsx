@@ -1,16 +1,19 @@
 import { Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { REPO_URL } from "../lib/links.ts";
+import { PROOF_URL, REPO_URL } from "../lib/links.ts";
 import { GitHubMark } from "./Icons.tsx";
 import { Logo } from "./Logo.tsx";
 
 export const SECTIONS = [
-  { id: "rollups", label: "Rollups" },
-  { id: "how-it-works", label: "How It Works" },
   { id: "verify", label: "Verify" },
+  { id: "how-it-works", label: "How It Works" },
   { id: "security", label: "Security" },
 ] as const;
+
+/** The explorer lives on its own route; rollup pages sit under it. */
+export const EXPLORER = { to: "/rollups", label: "Explorer" } as const;
+const inExplorer = (path: string) => path === "/rollups" || path.startsWith("/r/");
 
 /** The section whose top passed the nav last, on the home page. */
 function useActiveSection(enabled: boolean): string | undefined {
@@ -21,7 +24,7 @@ function useActiveSection(enabled: boolean): string | undefined {
       let current: string | undefined;
       for (const s of SECTIONS) {
         const el = document.getElementById(s.id);
-        if (el && el.getBoundingClientRect().top <= 120) current = s.id;
+        if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.4) current = s.id;
       }
       setActive(current);
     };
@@ -47,6 +50,19 @@ export function Nav() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: close the menu on every navigation
   useEffect(() => setOpen(false), [pathname, hash]);
 
+  // Esc closes the open menu and puts focus back on the menu button.
+  const burgerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      burgerRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
     <header className="nav" data-scrolled={scrolled || open}>
       <div className="nav-inner">
@@ -57,6 +73,12 @@ export function Nav() {
               {s.label}
             </Link>
           ))}
+          <Link to={EXPLORER.to} className="nav-link" data-active={inExplorer(pathname)}>
+            {EXPLORER.label}
+          </Link>
+          <a className="nav-link" href={PROOF_URL} target="_blank" rel="noreferrer">
+            Evidence
+          </a>
         </nav>
         <div className="nav-end">
           <a
@@ -70,6 +92,7 @@ export function Nav() {
             <GitHubMark />
           </a>
           <button
+            ref={burgerRef}
             type="button"
             className="icon-btn nav-burger"
             aria-label={open ? "Close menu" : "Open menu"}
@@ -87,6 +110,15 @@ export function Nav() {
               {s.label}
             </Link>
           ))}
+          <Link to={EXPLORER.to} className="t-large">
+            {EXPLORER.label}
+          </Link>
+          <a className="t-large" href={PROOF_URL} target="_blank" rel="noreferrer">
+            Evidence
+          </a>
+          <a className="t-large" href={REPO_URL} target="_blank" rel="noreferrer">
+            Source on GitHub
+          </a>
         </nav>
       )}
     </header>

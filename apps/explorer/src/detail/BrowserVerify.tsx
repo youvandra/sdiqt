@@ -3,7 +3,7 @@ import { Check, FlipHorizontal2, Loader2, ShieldCheck, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "../components/Ui.tsx";
 import { type Bundle, bundleName, fetchBundle, flipOneByte } from "../lib/bundle.ts";
-import { num } from "../lib/format.ts";
+import { fieldLabel, num } from "../lib/format.ts";
 
 type Submission = ApiBatchDetailV1["submissions"][number];
 type Claim = NonNullable<Submission["claim"]>;
@@ -154,7 +154,7 @@ export function BrowserVerify({
                 ? "wait"
                 : "ok"
           }
-          label="Download bundle"
+          label="Download the bundle"
           detail={
             state.step === "download"
               ? mb(state.loaded)
@@ -173,7 +173,7 @@ export function BrowserVerify({
                   : "bad"
                 : "wait"
           }
-          label="Verify every chunk, the links and the proof root"
+          label="Check every chunk and how they link"
           detail={
             state.step === "done"
               ? state.verdict.valid
@@ -190,20 +190,20 @@ export function BrowserVerify({
                 : "bad"
               : "wait"
           }
-          label="Match the proven roots with the chain roots"
+          label="Compare the proven roots with the chain"
           detail={
             state.step === "done" && state.verdict.valid
               ? state.chainDiffs.length === 0
-                ? "All 7 fields equal"
-                : `Differs: ${state.chainDiffs.join(", ")}`
+                ? "All 7 fields match the chain"
+                : `Differs: ${state.chainDiffs.map(fieldLabel).join(", ")}`
               : undefined
           }
         />
       </ol>
 
       <p className="t-caption relay-note">
-        Chain data relayed by sdiqt.xyz. Run <span className="t-mono">sdiqt-verify</span> to check
-        against your own node.
+        Chain data relayed by sdiqt.xyz. Run <span className="t-mono">scripts/proof.mjs</span> from
+        a clone to compare against chain roots read directly.
       </p>
 
       {state.step === "error" && (
@@ -234,23 +234,25 @@ export function BrowserVerify({
       </div>
 
       {flip.step !== "idle" && (
-        <div
-          className="flip-result"
-          data-tone={flip.step === "done" && !flip.verdict.valid ? "ok" : "wait"}
-        >
+        <div className="flip-result" data-tone={flip.step === "done" ? "bad" : "wait"}>
           {flip.step === "running" ? (
             <span className="t-small">Verifying the tampered copy</span>
           ) : (
             <>
               <span className="t-body-strong">
-                {flip.verdict.valid
-                  ? "The tampered copy passed. Report this as a bug."
-                  : `Tampered copy rejected in ${ms(flip.verdict.ms)}`}
+                {flip.verdict.valid ? (
+                  "The tampered copy passed. Report this as a bug."
+                ) : (
+                  <>
+                    <Badge tone="bad">Invalid</Badge> Tampered copy rejected in{" "}
+                    {ms(flip.verdict.ms)}
+                  </>
+                )}
               </span>
               <span className="t-small">
                 Bit 0 of byte {num(flip.offset)} in chunk 0 flipped, chunk hash recomputed so only
-                the STARK check can catch it. Verifier:{" "}
-                <span className="t-mono flip-error">{flip.verdict.error ?? "accepted"}</span>
+                the STARK check can catch it. The verifier reports{" "}
+                <span className="t-mono flip-error">{flip.verdict.error ?? "accepted"}</span>.
               </span>
             </>
           )}

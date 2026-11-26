@@ -1,4 +1,4 @@
-import type { ApiHealthV1 } from "@sdiqt/protocol";
+import type { ApiHealthV1, CountsV1 } from "@sdiqt/protocol";
 import { SectionHead } from "../components/Ui.tsx";
 import { ago, type BatchRow, entryCount, num } from "../lib/format.ts";
 
@@ -6,66 +6,92 @@ interface Step {
   title: string;
   body: string;
   metric: string;
+  unit: string;
+  keys: string;
 }
 
 export function HowItWorks({
   rows,
   health,
+  counts,
 }: {
   rows: BatchRow[];
   health: ApiHealthV1 | undefined;
+  counts: CountsV1 | null;
 }) {
+  const reading = rows.length === 0;
   const entriesTotal = rows.reduce((n, r) => n + entryCount(r.inbox_from, r.inbox_end), 0);
   const matched = rows.filter((r) => r.judged === "match").length;
   const proven = rows.filter((r) => r.validity === "proven").length;
   const last = health?.last_receipt;
+  const live = (v: string) => (reading ? "Reading" : v);
 
   const steps: Step[] = [
     {
-      title: "Inbox",
-      body: "Users post signed deposits and transfers to the rollup inbox on QoreChain. SDIQT archives every entry, so nothing depends on the chain keeping it.",
-      metric: `${num(entriesTotal)} entries archived`,
+      title: "Users Sign",
+      body: "Users post deposits, transfers and withdrawals to the rollup inbox. SDIQT archives every entry.",
+      metric: live(num(entriesTotal)),
+      unit: "entries archived",
+      keys: "ML-DSA-44",
     },
     {
-      title: "Batch",
-      body: "A submitter posts a batch: an inbox range plus the roots it claims. QoreChain opens a challenge window for it.",
-      metric: `${num(rows.length)} batches seen`,
+      title: "Operator Submits",
+      body: "The operator anchors a batch, backed by a 1,000 QOR bond. A 3,600 s challenge window opens.",
+      metric: live(num(rows.length)),
+      unit: "batches",
+      keys: "ML-DSA-87",
     },
     {
-      title: "Re-execute",
-      body: "The watchtower replays the range from its archive and compares every root. A wrong root gets a fraud challenge.",
-      metric: `${num(matched)} of ${num(rows.length)} match`,
+      title: "Prover Proves",
+      body: "SP1 re-executes the batch, checks every signature inside the proof and posts a 300-byte QSTR commitment.",
+      metric: live(num(proven)),
+      unit: "proven by a STARK",
+      keys: "Hash-based STARK",
     },
     {
-      title: "STARK + QSTR",
-      body: "The prover runs the same state transition inside SP1 and posts a QSTR commitment naming the proof bundle.",
-      metric: `${num(proven)} proven`,
+      title: "Watchtower Checks",
+      body: "A separate watchtower re-executes the batch, verifies the bundle and signs a receipt. A wrong root is open to a fraud proof.",
+      metric: live(`${num(matched)}/${num(rows.length)}`),
+      unit: "roots match",
+      keys: "ML-DSA-87",
     },
     {
-      title: "Signed receipt",
-      body: "The tower signs a receipt with ML-DSA-87 that holds both answers: settlement from the chain, validity from the proof.",
-      metric: last ? `Last ${ago(last.issued_at)}` : "No receipt yet",
+      title: "Users Exit",
+      body: "A final batch pays withdrawals. An offline user seals a withdrawal to the watchtower, which posts it at the chosen block.",
+      metric: counts ? num(counts.withdrawals) : "2",
+      unit: "withdrawals paid",
+      keys: "ML-KEM-1024",
+    },
+    {
+      title: "Anyone Verifies",
+      body: "The bundle verifies in a browser or a CLI, after QoreChain prunes the batch.",
+      metric: last ? ago(last.issued_at) : live("None yet"),
+      unit: "last receipt",
+      keys: "Open verifier",
     },
   ];
 
   return (
     <section className="section how" id="how-it-works" aria-labelledby="how-title">
-      <div className="how-bg" aria-hidden="true" />
       <SectionHead
         eyebrow="How It Works"
-        title="From inbox entry to signed receipt."
+        title="One batch, from signature to proof."
         id="how-title"
       >
-        Five steps, each one checkable on its own. The numbers come from the live watchtower.
+        One batch on sdiqt-1, from a user's signed entry to a proof anyone checks. The numbers are
+        live.
       </SectionHead>
-      <ol className="steps">
+      <ol className="flow">
         {steps.map((s, i) => (
-          <li key={s.title} className="step">
-            <span className="t-body-strong">
-              {String(i + 1).padStart(2, "0")} · {s.title}
+          <li key={s.title} className="flow-step">
+            <span className="flow-num t-mono">{String(i + 1).padStart(2, "0")}</span>
+            <span className="flow-metric">
+              {s.metric}
+              <span className="flow-unit">{s.unit}</span>
             </span>
-            <p className="t-body">{s.body}</p>
-            <span className="step-metric t-mono">{s.metric}</span>
+            <span className="t-body-strong">{s.title}</span>
+            <p className="t-small">{s.body}</p>
+            <span className="flow-keys t-mono">{s.keys}</span>
           </li>
         ))}
       </ol>

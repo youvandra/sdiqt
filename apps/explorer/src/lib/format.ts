@@ -13,7 +13,7 @@ export function shortHash(h: string, head = 8, tail = 6): string {
 export const SETTLEMENT: Record<Settlement, { label: string; tone: Tone; hint: string }> = {
   pending: { label: "Pending", tone: "wait", hint: "Inside its challenge window on QoreChain" },
   final: { label: "Final", tone: "ok", hint: "Challenge window closed, QoreChain finalized it" },
-  rejected: { label: "Void", tone: "bad", hint: "Rolled back by an upheld fraud proof" },
+  rejected: { label: "Rejected", tone: "bad", hint: "Rejected by an upheld fraud proof" },
   unknown: {
     label: "Unknown",
     tone: "wait",
@@ -56,7 +56,7 @@ const REEXEC: Partial<Record<Validity, { label: string; tone: Tone; hint: string
   unproven: {
     label: "Match",
     tone: "ok",
-    hint: "Re-execution from the public inbox gives the chain's roots",
+    hint: "Re-execution from chain data gives the chain's roots",
   },
   mismatch: VALIDITY.mismatch,
 };
@@ -102,6 +102,26 @@ export function duration(seconds: number): string {
   if (h > 0) return `${h} h ${m} min`;
   if (m > 0) return `${m} min ${r} s`;
   return `${r} s`;
+}
+
+/** Reader labels for root and manifest fields, keyed by API and manifest names. */
+const FIELD_LABELS: Record<string, string> = {
+  batch_index: "Batch index",
+  inbox_from: "Inbox start",
+  inbox_end: "Inbox end",
+  parentRoot: "Previous state root",
+  parent_root: "Previous state root",
+  stateRoot: "State root",
+  state_root: "State root",
+  withdrawalsRoot: "Withdrawals root",
+  withdrawals_root: "Withdrawals root",
+  dataHash: "Data hash",
+  data_hash: "Data hash",
+};
+
+/** "State root" for `stateRoot` or `state_root`; an unknown name passes through. */
+export function fieldLabel(name: string): string {
+  return FIELD_LABELS[name] ?? name;
 }
 
 /** "25 Nov 2026, 06:40 UTC". */

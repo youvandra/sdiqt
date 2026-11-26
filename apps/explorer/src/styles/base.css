@@ -43,15 +43,25 @@ button {
   color: var(--base);
 }
 
-/* Grain over the whole page, as in the brand template */
+/* Brand grain behind the content: data is never drawn through it. */
 .noise {
   position: fixed;
   inset: 0;
-  z-index: 8;
+  z-index: 0;
   pointer-events: none;
   background-image: url("/brand/noise.png");
   background-repeat: repeat;
-  opacity: 0.13;
+  opacity: 0.06;
+}
+.main,
+.footer {
+  position: relative;
+  z-index: 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--fill);
+  outline-offset: 2px;
 }
 
 .page {
@@ -66,15 +76,20 @@ button {
   position: relative;
   width: 100%;
   max-width: var(--content-max);
-  padding: 96px var(--gutter);
+  padding: 72px var(--gutter);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 40px;
+  gap: 32px;
 }
 
+@media (max-width: 1199px) {
+  .section {
+    padding: 56px var(--gutter);
+  }
+}
 @media (max-width: 809px) {
   .section {
-    padding: 96px 16px;
+    padding: 48px 16px;
   }
 }

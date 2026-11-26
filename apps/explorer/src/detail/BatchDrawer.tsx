@@ -4,7 +4,9 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Badge, Hash, Segmented } from "../components/Ui.tsx";
 import { usePolled } from "../lib/api.ts";
 import { bundleName } from "../lib/bundle.ts";
-import { absolute, ago, axis, entries, num, SETTLEMENT } from "../lib/format.ts";
+import { SITE, trapTab, useDocumentTitle } from "../lib/dom.ts";
+import { absolute, ago, axis, entries, fieldLabel, num, SETTLEMENT } from "../lib/format.ts";
+import { SITE_URL } from "../lib/links.ts";
 import { useRollup } from "../lib/rollup.ts";
 import { BrowserVerify } from "./BrowserVerify.tsx";
 
@@ -28,20 +30,32 @@ export function BatchDrawer({
   const detail = usePolled((s) => api.batch(index, s), `batch:${id}:${index}`);
   const [tab, setTab] = useState<Tab>(verify && stark ? "proof" : "overview");
   const closeRef = useRef<HTMLButtonElement>(null);
-
+  const dialogRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+  useDocumentTitle(`Batch ${index} · ${id} · ${SITE}`, true);
+
+  // Modal: focus moves in, Tab stays in, Esc closes, and focus goes back to
+  // the row (or ribbon cell) that opened the drawer.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeRef.current?.focus();
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
+      else if (dialogRef.current) trapTab(dialogRef.current, e);
     };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
+      if (opener && opener !== document.body && opener.isConnected)
+        opener.focus({ preventScroll: true });
     };
-  }, [onClose]);
+  }, []);
 
   const subs = detail.data?.submissions;
   const current = subs?.[subs.length - 1];
@@ -55,7 +69,13 @@ export function BatchDrawer({
         onClick={onClose}
         tabIndex={-1}
       />
-      <aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <aside
+        ref={dialogRef}
+        className="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+      >
         <header className="drawer-head">
           <div className="drawer-title-row">
             <span className="eyebrow">{id}</span>
@@ -87,7 +107,7 @@ export function BatchDrawer({
               </Badge>
               {current.pruned && (
                 <Badge tone="accent" title="QoreChain pruned this batch record">
-                  Read From Archive
+                  From Archive
                 </Badge>
               )}
               <span className="t-small">
@@ -112,7 +132,7 @@ export function BatchDrawer({
         <div className="drawer-body">
           {detail.error && !current && (
             <div className="notice" data-tone="bad" role="alert">
-              Batch {index} is unreachable: {detail.error}
+              Batch {index} cannot be read right now.
             </div>
           )}
           {!current && !detail.error && <p className="t-body">Reading batch {index}</p>}
@@ -177,8 +197,7 @@ function OverviewTab({ s, stark }: { s: Submission; stark: boolean }) {
       {!stark && (
         <div className="notice" data-tone="accent" role="note">
           <span>
-            SDIQT re-executes this rollup from its public inbox and signs a receipt with the result.
-            STARK proofs run on sdiqt-1, the reference rollup, so this receipt says unproven.
+            This rollup gets re-execution and a signed receipt. STARK proofs run on sdiqt-1.
           </span>
         </div>
       )}
@@ -198,7 +217,7 @@ function OverviewTab({ s, stark }: { s: Submission; stark: boolean }) {
           <span className="t-caption">
             {s.judged === "match"
               ? "Re-execution matches the chain"
-              : `${s.differs.length} field(s) differ`}
+              : `${num(s.differs.length)} ${s.differs.length === 1 ? "field differs" : "fields differ"}`}
           </span>
         }
       >
@@ -220,10 +239,14 @@ function OverviewTab({ s, stark }: { s: Submission; stark: boolean }) {
                 <div key={r.key} className="roots-row" data-differs={differs}>
                   <span className="t-small">{r.label}</span>
                   <span>
-                    <Hash value={chainValue} head={6} tail={4} />
+                    {chainValue === "" ? (
+                      <span className="t-small c-muted">Empty</span>
+                    ) : (
+                      <Hash value={chainValue} head={6} tail={4} />
+                    )}
                     {differs && r.key === "stateRoot" && honest && (
                       <span className="roots-honest t-caption">
-                        Honest <Hash value={honest} head={6} tail={4} />
+                        Correct root <Hash value={honest} head={6} tail={4} />
                       </span>
                     )}
                   </span>
@@ -247,7 +270,7 @@ function OverviewTab({ s, stark }: { s: Submission; stark: boolean }) {
 
       <Panel title="Settlement">
         <dl className="kv">
-          <dt>State</dt>
+          <dt>Status</dt>
           <dd>
             {SETTLEMENT[s.settlement].label}
             <span className="kv-hint">{SETTLEMENT[s.settlement].hint}</span>
@@ -314,8 +337,8 @@ function ProofTab({ index, s, autoVerify }: { index: string; s: Submission; auto
           <dt>Signature mode</dt>
           <dd>
             {c.sig_mode === "full"
-              ? "Full: ML-DSA-44 checked inside the proof"
-              : "v0: signatures checked outside"}
+              ? "Full, ML-DSA-44 checked inside the proof"
+              : "v0, signatures checked outside the proof"}
           </dd>
           <dt>Program key</dt>
           <dd>
@@ -332,7 +355,11 @@ function ProofTab({ index, s, autoVerify }: { index: string; s: Submission; auto
       <BrowserVerify index={index} s={s} claim={c} autoRun={autoVerify} />
       <Panel
         title="Chunks"
-        aside={<span className="t-caption">{c.chunks.length} STARK proofs</span>}
+        aside={
+          <span className="t-caption">
+            {num(c.chunks.length)} STARK {c.chunks.length === 1 ? "proof" : "proofs"}
+          </span>
+        }
       >
         <ol className="chunks">
           {c.chunks.map((ch) => (
@@ -349,14 +376,28 @@ function ProofTab({ index, s, autoVerify }: { index: string; s: Submission; auto
       <Panel title="Verify it yourself">
         <p className="t-small">
           Download bundle <span className="t-mono">{bundleName(index, s.submit_tx)}</span> and run
-          the open-source verifier. It needs no chain access and gives the same answer after
-          QoreChain prunes the batch.
+          the open-source verifier. It works offline and gives the same answer after QoreChain
+          prunes the batch.
         </p>
-        <pre className="cmd">{`sdiqt-verify bundle ${bundleName(index, s.submit_tx)} \\
-  --vkey-hash ${c.program_vkey_hash}`}</pre>
+        <pre className="cmd">{verifyCommands(bundleName(index, s.submit_tx), c)}</pre>
       </Panel>
     </>
   );
+}
+
+/** Shell lines that fetch a bundle from sdiqt.xyz and verify it with the program pinned. */
+function verifyCommands(
+  name: string,
+  c: { chunks: { index: string }[]; program_vkey_hash: string },
+) {
+  const base = `${SITE_URL}/bundles/${name}`;
+  const files = ["manifest.json", ...c.chunks.map((ch) => `chunk-${ch.index}.bin`)];
+  return [
+    `mkdir -p ${name}`,
+    ...files.map((f) => `curl -sf --output-dir ${name} -O ${base}/${f}`),
+    `sdiqt-verify bundle ${name} \\`,
+    `  --vkey-hash ${c.program_vkey_hash}`,
+  ].join("\n");
 }
 
 function ReceiptTab({ index, s }: { index: string; s: Submission }) {
@@ -445,8 +486,8 @@ function ReceiptActions({ index, receipt }: { index: string; receipt: ApiReceipt
 }
 
 const CHALLENGE_LABEL: Record<NonNullable<Submission["challenge"]>["status"], string> = {
-  watch: "Watching, challenge sending is off",
-  refused: "Not challenged",
+  watch: "Watch only",
+  refused: "Skipped",
   failed: "Challenge failed",
   sent: "Challenge sent",
   upheld: "Challenge upheld",
@@ -473,7 +514,9 @@ function HistoryTab({ subs }: { subs: Submission[] }) {
             <dd>{num(s.submit_height)}</dd>
             <dt>Re-execution</dt>
             <dd>
-              {s.judged === "match" ? "Matches the chain" : `Differs: ${s.differs.join(", ")}`}
+              {s.judged === "match"
+                ? "Matches the chain"
+                : `Differs: ${s.differs.map(fieldLabel).join(", ")}`}
             </dd>
             {s.challenge && (
               <>

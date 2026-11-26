@@ -6,6 +6,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { deriveSealKeys } from "@qorechain/qoreseal";
 import {
   DEFAULT_CHALLENGE_BOND_UQOR,
+  isRestNotFound,
   postRollupDataMsg,
   resolvePqcKeypair,
   signerFromEnv,
@@ -31,6 +32,7 @@ import { ExitDesk } from "./exits.ts";
 import { checkable, Fleet } from "./fleet.ts";
 import { TowerStore } from "./store.ts";
 import { Tower } from "./tower.ts";
+import { type LatestBatch, Waker } from "./wake.ts";
 
 const USAGE = `sdiqt-watchtower --operator <qor1...> --bundles <url|dir> (--mnemonic-file <f> | --dev-seed <hex>) [options]
 sdiqt-watchtower --watch <all|id,id,...> (--mnemonic-file <f> | --dev-seed <hex>) [options]
@@ -43,7 +45,9 @@ sdiqt-watchtower --watch <all|id,id,...> (--mnemonic-file <f> | --dev-seed <hex>
   --vkey-hash <hex>      pin the SP1 program
   --mnemonic-file <f>    the tower account (its registered ML-DSA-87 key signs receipts)
   --dev-seed <hex>       32-byte seed for a local test key instead (issuer marked dev:)
-  --interval <s>         default 30
+  --interval <s>         longest wait between ticks, default 30
+  --probe <s>            check the latest batch this often and tick at once when a new
+                         one lands (wins challenge races); 0 = off, default 3
   --duration <s>         stop after this long, default forever
   --log <file>           JSONL log, default data/watchtower/<rollup>.jsonl
   --challenge            send challenges for confirmed fraud (needs SDIQT_LIVE=yes and
@@ -74,6 +78,7 @@ const { values } = parseArgs({
     "mnemonic-file": { type: "string" },
     "dev-seed": { type: "string" },
     interval: { type: "string", default: "30" },
+    probe: { type: "string", default: "3" },
     duration: { type: "string" },
     log: { type: "string" },
     listen: { type: "string" },
@@ -303,14 +308,33 @@ const api = await serve({
 const stopAt = values.duration
   ? Date.now() + Number(values.duration) * 1000
   : Number.POSITIVE_INFINITY;
+const probeSec = Number(values.probe);
+if (!Number.isFinite(probeSec) || probeSec < 0) throw new Error("--probe takes seconds >= 0");
+const waker = new Waker({
+  intervalMs: Number(values.interval) * 1000,
+  probeMs: probeSec * 1000,
+  probe: async (): Promise<LatestBatch> => {
+    try {
+      const b = await client.rest.getLatestBatch(rollup);
+      return { index: b.batchIndex, height: b.submittedAt };
+    } catch (err) {
+      if (isRestNotFound(err)) return null;
+      throw err;
+    }
+  },
+  onProbeError: (err) => log({ event: "probe_error", error: String(err) }),
+});
+let woke: "start" | "interval" | "new_batch" = "start";
 while (Date.now() < stopAt) {
+  await waker.mark();
   try {
+    const started = Date.now();
     const r = await tower.tick();
-    log({ event: "tick", ...r });
+    log({ event: "tick", woke, ms: Date.now() - started, ...r });
   } catch (err) {
     log({ event: "error", alert: true, error: String(err) });
   }
-  await new Promise((r) => setTimeout(r, Number(values.interval) * 1000));
+  woke = await waker.wait();
 }
 await new Promise<void>((r) => (api ? api.close(() => r()) : r()));
 store.close();

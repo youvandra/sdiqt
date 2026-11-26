@@ -4,29 +4,29 @@ import { BLOB, TREE } from "../lib/links.ts";
 
 const LINKS = [
   {
-    title: "QSTR v1 spec",
+    title: "Evidence",
+    body: "Every claim with its diana transaction, regenerated from chain.",
+    href: `${BLOB}/PROOF.md`,
+  },
+  {
+    title: "Threat Model",
+    body: "12 threats, each with its control.",
+    href: `${BLOB}/THREAT_MODEL.md`,
+  },
+  {
+    title: "QSTR v1 Spec",
     body: "The commitment the prover posts on chain for every proven batch.",
     href: `${BLOB}/specs/qstr-v1.md`,
   },
   {
-    title: "Verifier crate",
+    title: "Verifier Crate",
     body: "sdiqt-verify: the CLI, the library and the WebAssembly build used on this page.",
     href: `${TREE}/crates/sdiqt-verify`,
   },
   {
-    title: "Test vectors",
+    title: "Test Vectors",
     body: "Archived rollup data, a golden proof bundle and the real batch 1 bundle.",
     href: `${TREE}/vectors`,
-  },
-  {
-    title: "Prover calibration",
-    body: "Measured cycles, proof times and memory per chunk on the prover Mac.",
-    href: `${BLOB}/docs/prover-calibration.md`,
-  },
-  {
-    title: "Security policy",
-    body: "How to report a vulnerability and what is in scope.",
-    href: `${BLOB}/SECURITY.md`,
   },
   {
     title: "Watchtower API",
@@ -39,7 +39,7 @@ export function Builders() {
   return (
     <section className="section" id="builders" aria-labelledby="builders-title">
       <SectionHead eyebrow="For Builders" title="Everything is open source." id="builders-title">
-        Apache-2.0. Specs, code and test data live in one repository.
+        Apache-2.0. Specs, code, test data and evidence live in one repository.
       </SectionHead>
       <div className="builders-grid">
         {LINKS.map((l) => (

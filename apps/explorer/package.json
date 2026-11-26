@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check:links": "node scripts/check-links.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "cards": "node scripts/cards.mjs"
   },
   "dependencies": {
     "@sdiqt/protocol": "workspace:*",

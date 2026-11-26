@@ -1,9 +1,11 @@
 import { Link } from "react-router";
+import { SITE, useDocumentTitle } from "../lib/dom.ts";
 import { ISSUES_URL, LICENSE_URL } from "../lib/links.ts";
 
 const UPDATED = "25 November 2026";
 
 function LegalPage({ title, children }: { title: string; children: React.ReactNode }) {
+  useDocumentTitle(`${title} · ${SITE}`);
   return (
     <article className="section legal" aria-labelledby="legal-title">
       <div className="legal-head">
@@ -20,7 +22,7 @@ function LegalPage({ title, children }: { title: string; children: React.ReactNo
 
 export function Privacy() {
   return (
-    <LegalPage title="Privacy Policy">
+    <LegalPage title="Privacy policy">
       <h2 className="t-large">What this site collects</h2>
       <p className="t-body">
         The SDIQT explorer has no accounts, no cookies, no analytics and no third-party trackers.
@@ -52,7 +54,7 @@ export function Privacy() {
 
 export function Terms() {
   return (
-    <LegalPage title="Terms of Use">
+    <LegalPage title="Terms of use">
       <h2 className="t-large">Testnet software</h2>
       <p className="t-body">
         SDIQT runs on the QoreChain diana testnet. The software is provided as is, without warranty,
