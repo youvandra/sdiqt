@@ -1,10 +1,10 @@
-import { Menu, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { PROOF_URL, REPO_URL } from "../lib/links.ts";
+import { REPO_URL } from "../lib/links.ts";
 import { GitHubMark } from "./Icons.tsx";
 import { Logo } from "./Logo.tsx";
 
+/** Landing sections, linked from the footer. */
 export const SECTIONS = [
   { id: "verify", label: "Verify" },
   { id: "how-it-works", label: "How It Works" },
@@ -15,31 +15,10 @@ export const SECTIONS = [
 export const EXPLORER = { to: "/rollups", label: "Explorer" } as const;
 const inExplorer = (path: string) => path === "/rollups" || path.startsWith("/r/");
 
-/** The section whose top passed the nav last, on the home page. */
-function useActiveSection(enabled: boolean): string | undefined {
-  const [active, setActive] = useState<string>();
-  useEffect(() => {
-    if (!enabled) return setActive(undefined);
-    const onScroll = () => {
-      let current: string | undefined;
-      for (const s of SECTIONS) {
-        const el = document.getElementById(s.id);
-        if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.4) current = s.id;
-      }
-      setActive(current);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [enabled]);
-  return active;
-}
-
+/** Logo on the left; the Explorer button and the GitHub mark on the right. */
 export function Nav() {
-  const { pathname, hash } = useLocation();
-  const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
   const [scrolled, setScrolled] = useState(false);
-  const active = useActiveSection(pathname === "/");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -47,42 +26,18 @@ export function Nav() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: close the menu on every navigation
-  useEffect(() => setOpen(false), [pathname, hash]);
 
-  // Esc closes the open menu and puts focus back on the menu button.
-  const burgerRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      setOpen(false);
-      burgerRef.current?.focus();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
+  const here = inExplorer(pathname);
   return (
-    <header className="nav" data-scrolled={scrolled || open}>
+    <header className="nav" data-scrolled={scrolled}>
       <div className="nav-inner">
         <Logo />
-        <nav className="nav-links" aria-label="Sections">
-          {SECTIONS.map((s) => (
-            <Link key={s.id} to={`/#${s.id}`} className="nav-link" data-active={active === s.id}>
-              {s.label}
-            </Link>
-          ))}
-          <a className="nav-link" href={PROOF_URL} target="_blank" rel="noreferrer">
-            Evidence
-          </a>
-        </nav>
         <div className="nav-end">
           <Link
             to={EXPLORER.to}
             className="btn btn-sm btn-primary nav-cta"
-            data-active={inExplorer(pathname)}
-            aria-current={inExplorer(pathname) ? "page" : undefined}
+            data-active={here}
+            aria-current={here ? "page" : undefined}
           >
             {EXPLORER.label}
           </Link>
@@ -96,36 +51,8 @@ export function Nav() {
           >
             <GitHubMark />
           </a>
-          <button
-            ref={burgerRef}
-            type="button"
-            className="icon-btn nav-burger"
-            aria-label={open ? "Close menu" : "Open menu"}
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-          >
-            {open ? <X size={22} /> : <Menu size={22} />}
-          </button>
         </div>
       </div>
-      {open && (
-        <nav className="nav-menu" aria-label="Sections">
-          {SECTIONS.map((s) => (
-            <Link key={s.id} to={`/#${s.id}`} className="t-large">
-              {s.label}
-            </Link>
-          ))}
-          <Link to={EXPLORER.to} className="t-large">
-            {EXPLORER.label}
-          </Link>
-          <a className="t-large" href={PROOF_URL} target="_blank" rel="noreferrer">
-            Evidence
-          </a>
-          <a className="t-large" href={REPO_URL} target="_blank" rel="noreferrer">
-            Source on GitHub
-          </a>
-        </nav>
-      )}
     </header>
   );
 }

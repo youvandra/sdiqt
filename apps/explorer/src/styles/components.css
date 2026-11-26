@@ -213,41 +213,17 @@
   border-bottom-color: var(--border);
 }
 .nav-inner {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   width: 100%;
   max-width: var(--content-width);
-}
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.nav-link {
-  padding: 8px 12px;
-  border-radius: var(--radius-pill);
-  font: 400 14px / 1 var(--font-body);
-  color: var(--text-subtle);
-  transition:
-    color var(--hover-duration) var(--ease-out),
-    background-color var(--hover-duration) var(--ease-out);
-}
-.nav-link:hover {
-  color: var(--text);
-}
-.nav-link[data-active="true"] {
-  color: var(--text);
-  background: var(--base-6);
 }
 .nav-end {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 4px;
-}
-.nav-burger {
-  display: none;
 }
 /* Explorer: the one route button, beside the GitHub mark */
 .nav-cta {
@@ -256,34 +232,9 @@
 .nav-cta[data-active="true"] {
   background: var(--base-12);
 }
-.nav-menu {
-  position: fixed;
-  inset: var(--nav-height) 0 0 0;
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 16px;
-  background: var(--base);
-  border-top: 1px solid var(--border);
-}
-.nav-menu a {
-  padding: 16px 8px;
-  border-bottom: 1px solid var(--border);
-}
 @media (max-width: 809px) {
   .nav {
     padding: 12px 16px;
-  }
-  .nav-inner {
-    grid-template-columns: 1fr auto;
-  }
-  .nav-links,
-  .nav-cta {
-    display: none;
-  }
-  .nav-burger {
-    display: inline-flex;
   }
   /* Phones scroll dense rows under the bar: an opaque fill keeps the logo readable. */
   .nav[data-scrolled="true"] {
