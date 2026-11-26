@@ -1,10 +1,10 @@
 # SDIQT
 
-SDIQT gives every batch of a QoreChain qledger rollup a hash-based STARK proof that anyone can check in a browser. On the diana testnet, 4 of 4 batches of the rollup `sdiqt-1` are proven and final, and a 2 QOR withdrawal was paid from a proven batch.
+SDIQT gives every batch of a QoreChain qledger rollup a hash-based STARK proof that anyone can check in a browser. On the diana testnet, all 9 batches of the rollup `sdiqt-1` are proven and final, and a 2 QOR withdrawal was paid from a proven batch. The same watchtower re-executes every other qledger-v1 rollup on diana from its public inbox: 11 rollups and 1,635 batches checked, 13 mismatching submissions found, and QoreChain rejected all 13.
 
 **Live:** https://sdiqt.xyz · **Video:** _placeholder, the link is added at submission_ · **Evidence:** [PROOF.md](PROOF.md)
 
-Numbers in this README come from [PROOF.md](PROOF.md) and [`docs/counts.json`](docs/counts.json), a snapshot at diana height 10728225 that `scripts/proof.mjs` recomputes from chain.
+The `sdiqt-1` evidence in this README comes from [PROOF.md](PROOF.md) and [`docs/counts.json`](docs/counts.json), a snapshot at diana height 10750787 (25 Nov 2026 21:36 UTC) that `scripts/proof.mjs` recomputes from chain. Coverage numbers come from [`/api/rollups`](https://sdiqt.xyz/api/rollups) as of 25 Nov 2026 21:29 UTC (diana height 10750487).
 
 ## The problem
 
@@ -41,13 +41,45 @@ flowchart LR
   IN -->|after 3,600 s| WD[MsgExecuteWithdrawal]
 ```
 
+## Every qledger rollup on diana
+
+A qledger-v1 rollup with based sequencing posts every entry to a public inbox on QoreChain, so the watchtower re-executes it from chain data alone. Run with `--watch all`, the watchtower finds each such rollup on diana, keeps one watch-only tower per rollup in one process, and signs an ML-DSA-87 receipt for each batch with the same registered key it uses on `sdiqt-1`. Coverage has two tiers:
+
+| Tier | Rollups | What each batch gets |
+|---|---|---|
+| STARK + re-execution | `sdiqt-1` | Re-execution, a STARK bundle named by a QSTR commitment, a signed receipt with both answers, and a fraud challenge on a wrong root |
+| Re-execution | the other 10 | Re-execution against the roots the submitter claimed and a signed receipt; a wrong root is reported as a mismatch |
+
+STARK proofs and challenges run on `sdiqt-1`; on the other rollups the watchtower re-executes and reports. The prover itself runs on any qledger-v1 batch: the `rdk-v328-e2e-mwd5v89d` batch in [Quick start](#quick-start) belongs to another team's rollup.
+
+As of 25 Nov 2026 21:29 UTC, from [`/api/rollups`](https://sdiqt.xyz/api/rollups):
+
+| Rollup | Tier | Batches checked | Re-execution match | Mismatching submissions | Rejected by QoreChain |
+|---|---|---|---|---|---|
+| `sdiqt-1` | STARK | 9 | 9 | 0 | 0 |
+| `augury-oracle` | Re-execution | 0 | 0 | 0 | 0 |
+| `ledgerpump` | Re-execution | 5 | 5 | 1 | 1 |
+| `rdk-v328-e2e-mwd5v89d` | Re-execution | 7 | 7 | 2 | 2 |
+| `sealed-scouts-1` | Re-execution | 1,521 | 1,521 | 2 | 2 |
+| `skyproof-1` | Re-execution | 12 | 12 | 1 | 1 |
+| `tree-rings` | Re-execution | 14 | 14 | 0 | 0 |
+| `veil-pay-1` | Re-execution | 8 | 8 | 1 | 1 |
+| `vigil-1` | Re-execution | 36 | 36 | 4 | 4 |
+| `vigil-pay-1` | Re-execution | 23 | 23 | 2 | 2 |
+| `wicketgate-pay` | Re-execution | 0 | 0 | 0 | 0 |
+| **Total, 11 rollups** | | **1,635** | **1,635 (100%)** | **13** | **13** |
+
+"Batches checked" counts the current submission at each batch index. Each of the 13 mismatching submissions claimed roots that differ from a re-execution of its inbox range; QoreChain rejected each one through an upheld fraud proof, and a later submission at the same index took its place, so the 1,648 submissions on record are the 1,635 current batches plus those 13. On `sdiqt-1`, all 9 batches are proven by a STARK and final on QoreChain; the median time from batch submit to QSTR post is 2 min 17 s ([PROOF.md](PROOF.md)).
+
+The explorer lists every rollup at [sdiqt.xyz](https://sdiqt.xyz/#rollups), with one page per rollup at `https://sdiqt.xyz/r/<rollup>`. The API serves each rollup at `/api/r/<rollup>/{health,batches,batches/<i>,receipts/<i>}`; `sdiqt-1` keeps its routes at `/api`.
+
 ## Trust model
 
 | Party | What it can do | What stops it |
 |---|---|---|
 | Operator | Submits batches and QSTR records | Its 1,000 QOR bond: anyone can challenge a wrong root within 3,600 s. User transfers need the user's ML-DSA-44 signature, checked by qledger and inside the proof. |
 | Prover | Produces bundles | A bad bundle fails `sdiqt-verify` and the watchtower's check. A missing prover leaves batches unproven; settlement goes on. |
-| Watchtower | Signs receipts, challenges wrong roots, holds sealed exit packets until their release height | Every receipt field is re-derivable from chain data and the bundle. The tower has no key over rollup funds and no submitter bond. A user can always post a withdrawal directly. |
+| Watchtower | Signs receipts, challenges wrong roots on `sdiqt-1`, reports wrong roots on the other qledger-v1 rollups, holds sealed exit packets until their release height | Every receipt field is re-derivable from chain data and the bundle. The tower has no key over rollup funds and no submitter bond. A user can always post a withdrawal directly. |
 | Explorer | Shows chain data and verifies bundles in the browser | Chain data in the browser is relayed by sdiqt.xyz; the CLI and `scripts/proof.mjs` read the chain directly. |
 | QoreChain | Settles every batch by its challenge window | The STARK is checked off chain by the watchtower, the browser and the CLI. Settlement stays optimistic. |
 
@@ -70,7 +102,7 @@ A chunk proof is about 1.27 MB and verifies in 30 to 62 ms.
 | Primitive | What it does here | Code |
 |---|---|---|
 | RDK qledger-v1 rollup, based sequencing | Rollup `sdiqt-1`, inbox, batches, fraud path | [`apps/operator/src/submit.ts`](apps/operator/src/submit.ts), [`crates/qledger-core`](crates/qledger-core) |
-| `checkQledgerFraud` (`@qorechain/rdk`) | Watchtower re-execution of every batch | [`apps/watchtower/src`](apps/watchtower/src) |
+| `checkQledgerFraud` (`@qorechain/rdk`) | Watchtower re-execution of every batch, on `sdiqt-1` and on every other qledger-v1 rollup on diana | [`apps/watchtower/src`](apps/watchtower/src) |
 | `MsgChallengeBatch` | Challenge of a wrong-root batch | [`apps/watchtower/src/challenge.ts`](apps/watchtower/src/challenge.ts) |
 | `MsgExecuteWithdrawal` | Withdrawal paid from a final batch | [`apps/operator/src/withdraw.ts`](apps/operator/src/withdraw.ts) |
 | ML-DSA-87 PQC keys, hybrid signed txs | Operator txs and watchtower receipts | [`packages/chain/src/operator-key.ts`](packages/chain/src/operator-key.ts), [`apps/watchtower/src/receipt.ts`](apps/watchtower/src/receipt.ts) |
@@ -92,19 +124,19 @@ Every setup transaction, with height and the check that ran on it, is in [PROOF.
 
 ## Evidence
 
-At height 10728225 ([PROOF.md](PROOF.md)):
+At height 10750787 ([PROOF.md](PROOF.md)):
 
 | Count | Value |
 |---|---|
-| Batches submitted / proven / final | 4 / 4 / 4 |
+| Batches submitted / proven / final | 9 / 9 / 9 |
 | Batches rejected by a challenge | 0 |
-| User entries (deposits / transfers / withdrawals) | 5 (2 / 2 / 1) |
-| QSTR commitments posted | 4 |
+| User entries (deposits / transfers / withdrawals) | 10 (2 / 6 / 2) |
+| QSTR commitments posted | 9 |
 | Setup and withdrawal claims checked against chain | 8 of 8 |
-| Median time from batch submit to QSTR post | 17 min 13 s |
+| Median time from batch submit to QSTR post | 2 min 17 s |
 | Longest time from batch submit to QSTR post | 18 min 49 s |
 
-Batches 0 to 2 waited in the prove queue for a fix; batch 3 went from submit to QSTR in 2 min 8 s. The withdrawal: the demo user posted a signed 2 QOR withdrawal in batch 3 (tx `18EE89B6…`), and after batch 3 was final `MsgExecuteWithdrawal` paid it (tx `D4E2A450…`, height 10728212).
+Batches 0 to 2 waited in the prove queue for a fix; batches 3 to 8 went from submit to QSTR in 2 min 6 s to 3 min 45 s. The withdrawal: the demo user posted a signed 2 QOR withdrawal in batch 3 (tx `18EE89B6…`), and after batch 3 was final `MsgExecuteWithdrawal` paid it (tx `D4E2A450…`, height 10728212).
 
 Built and tested, with the on-chain run still to come (listed under "Not shown yet" in PROOF.md):
 
@@ -115,7 +147,7 @@ Attack cases and their refusals are in [`redteam/`](redteam/). Formats are speci
 
 ## Quick start
 
-Needs Rust (stable) and, for the last part, Node.js 22.18 or later with pnpm.
+Needs Rust stable from [rustup](https://rustup.rs) (on macOS also the Xcode Command Line Tools: `xcode-select --install`) and, for the last part, Node.js 22.18 or later with pnpm. The CLI install compiles about 200 crates, about 36 s on a 10-core M-series Mac with the toolchain already in place. After every step below the clone, build output and package caches take about 1.1 GB of disk.
 
 Verify a real batch of another team's rollup from the repo:
 
@@ -136,9 +168,9 @@ VALID in 82.2ms
 Verify a live `sdiqt-1` batch with the program pinned (exit code 0 is VALID, 1 is INVALID):
 
 ```bash
-mkdir batch-3 && cd batch-3
-curl -sfO https://sdiqt.xyz/bundles/batch-3-FC48D936F9B4/manifest.json -O https://sdiqt.xyz/bundles/batch-3-FC48D936F9B4/chunk-0.bin
-sdiqt-verify bundle . --vkey-hash db524751acbbee71eeddae759b6ef92513fe787d8f88585c5d3e38252be32065
+mkdir -p batch-3
+curl -sf --output-dir batch-3 -O https://sdiqt.xyz/bundles/batch-3-FC48D936F9B4/manifest.json -O https://sdiqt.xyz/bundles/batch-3-FC48D936F9B4/chunk-0.bin
+sdiqt-verify bundle batch-3 --vkey-hash db524751acbbee71eeddae759b6ef92513fe787d8f88585c5d3e38252be32065
 ```
 
 The printed `manifest sha256` (`a22fd9bd…`) equals the one in batch 3's QSTR in PROOF.md.
@@ -148,11 +180,11 @@ Recompute PROOF.md from chain (from the repo root; `--check` fails if any number
 ```bash
 pnpm install --frozen-lockfile
 node apps/archiver/src/cli.ts --rollup sdiqt-1 --from-height 10720040
-node scripts/proof.mjs --bundles https://sdiqt.xyz/bundles --at-height 10728225 --check
+node scripts/proof.mjs --bundles https://sdiqt.xyz/bundles --at-height 10750787 --check
 ```
 
 ```text
-{"snapshot_height":"10728225","batches":4,"proven":4,"final":4,"claims_ok":"8/8","changed":0}
+{"snapshot_height":"10750787","batches":9,"proven":9,"final":9,"claims_ok":"8/8","changed":0}
 ```
 
 Tests: `pnpm test` for TypeScript and `cargo test` for Rust.
@@ -166,7 +198,7 @@ Tests: `pnpm test` for TypeScript and `cargo test` for Rust.
 | [`crates/sdiqt-guest`](crates/sdiqt-guest), [`crates/sdiqt-prover`](crates/sdiqt-prover) | SP1 program and prover (needs the SP1 toolchain) |
 | [`crates/sdiqt-verify`](crates/sdiqt-verify) | Verifier: CLI, library and WebAssembly build |
 | [`apps/operator`](apps/operator) | Batching, proving queue, QSTR, withdrawals, exit packets |
-| [`apps/watchtower`](apps/watchtower) | Re-execution, receipts, challenges, exit desk, API |
+| [`apps/watchtower`](apps/watchtower) | Re-execution, receipts, challenges, exit desk, API, watch-only towers for every qledger-v1 rollup |
 | [`apps/archiver`](apps/archiver) | JSONL archive of the inbox and batches that outlives chain pruning |
 | [`apps/explorer`](apps/explorer) | The site at sdiqt.xyz |
 | [`packages/protocol`](packages/protocol), [`packages/verify`](packages/verify), [`packages/chain`](packages/chain) | Shared formats, bundle checks, chain client with spend caps |
@@ -175,7 +207,7 @@ Tests: `pnpm test` for TypeScript and `cargo test` for Rust.
 ## Prior art
 
 - **Cloister** runs zk rollups on diana whose SNARK the chain checks at submit, on a custom VM. That gives instant finality with pairing-based cryptography. SDIQT proves the standard qledger-v1 path with a hash-based STARK that the chain leaves to off-chain checkers.
-- **Vigil** and **Wicketgate** run qledger rollups with watchtowers that re-execute batches and sign ML-DSA attestations. SDIQT's watchtower does the same re-execution and adds a proof that a third party checks without re-executing.
+- **Vigil** and **Wicketgate** run qledger rollups with watchtowers that re-execute batches and sign ML-DSA attestations. SDIQT's watchtower does the same re-execution and adds a proof that a third party checks without re-executing. It also re-executes their rollups `vigil-1`, `vigil-pay-1` and `wicketgate-pay` in its watch-only tier.
 - **RDK pull request #1** upstream adds a re-execution validator for qledger batches in several languages. SDIQT uses the RDK's own `checkQledgerFraud` for that step.
 
 ## Protocol Builders requirements
@@ -185,7 +217,7 @@ Tests: `pnpm test` for TypeScript and `cargo test` for Rust.
 | ML-DSA-signed batches | Operator ML-DSA-87 key registered (tx `4FAC7406…`), every batch hybrid signed; user entries ML-DSA-44, checked inside each STARK. [PROOF.md](PROOF.md) |
 | Withdrawal | 2 QOR withdrawal posted in batch 3 and paid by `MsgExecuteWithdrawal` (tx `D4E2A450…`). [PROOF.md](PROOF.md#setup-on-chain) |
 | Settlement receipt | Watchtower ML-DSA-87 key registered (tx `BDA2DF6F…`); receipts at `https://sdiqt.xyz/api/receipts/<batch>`, shown on each batch in the explorer |
-| Watchtower | Re-executes and verifies every batch; challenge path in [`apps/watchtower/src/challenge.ts`](apps/watchtower/src/challenge.ts); on-chain challenge listed under "Not shown yet" |
+| Watchtower | Re-executes and verifies every batch; re-executes the other 10 qledger-v1 rollups on diana too, 1,635 batches across all 11 as of 25 Nov 2026 ([coverage](#every-qledger-rollup-on-diana)); challenge path in [`apps/watchtower/src/challenge.ts`](apps/watchtower/src/challenge.ts); on-chain challenge listed under "Not shown yet" |
 | ML-KEM data protection | Watchtower ML-KEM-1024 key registered (tx `6FB680F1…`); exit packets sealed with QoreSeal ([spec](specs/exit-packet-v1.md)); on-chain exit listed under "Not shown yet" |
 | Threat model | [THREAT_MODEL.md](THREAT_MODEL.md), [LIMITS.md](LIMITS.md) |
 

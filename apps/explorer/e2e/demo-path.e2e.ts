@@ -56,11 +56,29 @@ test("list, batch, browser verify, flip one byte", async ({ page }) => {
 test("an other team's rollup shows re-execution only", async ({ page }) => {
   const res = await page.request.get("/api/rollups");
   expect(res.ok()).toBe(true);
-  const body = (await res.json()) as { rollups: Array<{ rollup_id: string; tier: string }> };
-  const id = body.rollups.find((r) => r.tier === "reexec")?.rollup_id;
-  if (!id) throw new Error("no re-execution-only rollup on the deployed tower");
-  await page.goto(`/r/${id}`);
-  await expect(page.getByRole("heading", { name: id, exact: true })).toBeVisible();
+  const body = (await res.json()) as {
+    rollups: Array<{ rollup_id: string; tier: string; batches: string }>;
+  };
+  // The re-execution-only rollup with the most batches, so its batch list has rows.
+  const pick = body.rollups
+    .filter((r) => r.tier === "reexec")
+    .sort((a, b) => Number(b.batches) - Number(a.batches))[0];
+  if (!pick) throw new Error("no re-execution-only rollup on the deployed tower");
+  expect(Number(pick.batches), `${pick.rollup_id} has archived batches`).toBeGreaterThan(0);
+  const id = pick.rollup_id;
+
+  await page.goto("/");
+  const rollups = page.getByRole("list", { name: "Rollups" });
+  await expect(rollups.getByText("STARK + Re-execution", { exact: true })).toHaveCount(1);
+  await expect(rollups.getByText("Re-execution", { exact: true })).not.toHaveCount(0);
+  await rollups.getByRole("link").filter({ hasText: id }).first().click();
+  await expect(page).toHaveURL(new RegExp(`/r/${id}$`));
+
+  const head = page.locator("section.rollup-head");
+  await expect(head.getByRole("heading", { name: id, exact: true })).toBeVisible();
+  await expect(head.getByText("Re-execution", { exact: true })).toBeVisible();
+  await expect(head.getByText("STARK + Re-execution")).toHaveCount(0);
   await expect(page.getByText("Proven by a STARK")).toHaveCount(0);
   await expect(page.getByText("Re-executed: match")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Batches" }).getByRole("button")).not.toHaveCount(0);
 });

@@ -1,13 +1,15 @@
-import type { ApiRollupListV1, ApiRollupSummaryV1 } from "@sdiqt/protocol";
+import type { ApiRollupListV1, ApiRollupSummaryV1, CountsV1 } from "@sdiqt/protocol";
 import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
 import { Badge, SectionHead } from "../components/Ui.tsx";
-import { ago, num, SETTLEMENT } from "../lib/format.ts";
+import { ago, duration, num, SETTLEMENT } from "../lib/format.ts";
 import { rollupPath } from "../lib/rollup.ts";
 import { Stat } from "./Overview.tsx";
 
 interface Props {
   list: ApiRollupListV1 | undefined;
+  /** PROOF.md numbers for sdiqt-1 at one chain height; null when not deployed. */
+  counts: CountsV1 | null;
   loading: boolean;
   error: string | undefined;
 }
@@ -15,24 +17,26 @@ interface Props {
 const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 1000) / 10}%` : "No batches");
 
 /** Every qledger-v1 rollup on QoreChain diana, with what SDIQT checked on each. */
-export function Rollups({ list, loading, error }: Props) {
+export function Rollups({ list, counts, loading, error }: Props) {
   const rows = list?.rollups ?? [];
   const batches = rows.reduce((n, r) => n + Number(r.batches), 0);
   const match = rows.reduce((n, r) => n + Number(r.match), 0);
   const found = rows.reduce((n, r) => n + Number(r.mismatches_total), 0);
-  const voided = rows.reduce((n, r) => n + Number(r.mismatches_rejected), 0);
+  const rejected = rows.reduce((n, r) => n + Number(r.mismatches_rejected), 0);
+  const reference = rows.find((r) => r.tier === "stark");
 
   return (
     <section className="section" id="rollups" aria-labelledby="rollups-title">
       <SectionHead eyebrow="Rollups" title="Every qledger rollup on QoreChain." id="rollups-title">
         Each qledger-v1 rollup with a based inbox posts every entry on chain, so SDIQT re-executes
-        all of them with no integration. sdiqt-1 is the reference: every batch there also carries a
-        STARK proof.
+        all of them with no integration and signs a receipt for every batch. sdiqt-1 is the
+        reference: every batch there also carries a STARK proof. On the other rollups the watchtower
+        re-executes and reports; proofs and challenges run on sdiqt-1.
       </SectionHead>
 
       {rows.length > 0 && (
         <div className="card stats-card">
-          <Stat value={num(rows.length)} label="Rollups watched" note="qledger-v1, based inbox" />
+          <Stat value={num(rows.length)} label="Rollups checked" note="qledger-v1, based inbox" />
           <Stat
             value={num(batches)}
             label="Batches re-executed"
@@ -45,11 +49,20 @@ export function Rollups({ list, loading, error }: Props) {
           />
           <Stat
             value={num(found)}
-            label="Mismatches found"
+            label="Mismatching submissions"
             note={
-              found ? `${num(voided)} voided by QoreChain` : "Every batch gives the chain's roots"
+              found
+                ? `${num(rejected)} rejected by QoreChain`
+                : "Every batch gives the chain's roots"
             }
           />
+          {reference && (
+            <Stat
+              value={`${num(reference.proven)} of ${num(reference.batches)}`}
+              label="Proven on sdiqt-1"
+              note={proofNote(reference, counts)}
+            />
+          )}
         </div>
       )}
 
@@ -83,6 +96,13 @@ export function Rollups({ list, loading, error }: Props) {
       </div>
     </section>
   );
+}
+
+/** Final count from the live tower; median proof time from the PROOF.md snapshot. */
+function proofNote(r: ApiRollupSummaryV1, counts: CountsV1 | null): string {
+  const median = counts?.proof_latency_s.median;
+  if (median == null || !counts) return `${num(r.final)} final on QoreChain`;
+  return `${num(r.final)} final; median proof ${duration(median)} (PROOF.md, ${num(counts.batches_proven)} batches)`;
 }
 
 function Row({ r }: { r: ApiRollupSummaryV1 }) {

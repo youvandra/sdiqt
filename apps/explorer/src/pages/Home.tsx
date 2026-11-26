@@ -18,6 +18,7 @@ export function Home() {
   const health = usePolled(api.health, "health");
   const list = usePolled(api.batches, "batches");
   const rollups = usePolled(api.rollups, "rollups", 30_000);
+  const counts = usePolled(api.counts, "counts", 60_000);
   const onVerify = useCallback(
     (i: string) => navigate(rollupPath(REFERENCE_ROLLUP, i, true)),
     [navigate],
@@ -33,8 +34,13 @@ export function Home() {
   const rows = list.data?.batches ?? [];
   return (
     <>
-      <Hero health={health.data} error={health.error} />
-      <Rollups list={rollups.data} loading={rollups.loading} error={rollups.error} />
+      <Hero health={health.data} error={health.error} rollups={rollups.data} />
+      <Rollups
+        list={rollups.data}
+        counts={counts.data ?? null}
+        loading={rollups.loading}
+        error={rollups.error}
+      />
       <HowItWorks rows={rows} health={health.data} />
       <Verify rows={rows} onVerify={onVerify} />
       <Security />

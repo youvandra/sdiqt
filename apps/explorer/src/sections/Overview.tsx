@@ -69,11 +69,11 @@ export function Overview({ rows, health, counts, summary, onOpen, onFilter }: Pr
             <Stat value={num(matched)} label="Re-executed: match" note={share(matched)} />
             <Stat
               value={num(found)}
-              label="Mismatches found"
+              label="Mismatching submissions"
               note={
                 found === 0
                   ? "Every batch gives the chain's roots"
-                  : `${num(voided)} voided by QoreChain`
+                  : `${num(voided)} rejected by QoreChain`
               }
             />
           </>
@@ -133,7 +133,7 @@ function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => voi
         <span className="card-title">Batch ribbon</span>
         <span className="t-caption">
           {rows.length > shown.length
-            ? `Latest ${shown.length} of ${rows.length}`
+            ? `Latest ${num(shown.length)} of ${num(rows.length)}`
             : `${rows.length} batches`}
         </span>
       </div>
