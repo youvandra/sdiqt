@@ -148,7 +148,7 @@ function ProofStrip({
         rows.length > 0
           ? `Across ${num(rows.length)} rollups and ${num(batches)} batches`
           : "Across every watched rollup",
-      href: "/#rollups",
+      href: "/rollups",
     },
   ];
 

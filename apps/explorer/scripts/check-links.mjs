@@ -5,7 +5,7 @@
  *   - in-page anchors (`/#id`, `#id`) name an element on the page,
  *   - internal routes render their own page (not the 404 page),
  *   - external links answer below HTTP 400.
- * Pages: the home page, the legal pages, /r/sdiqt-1 and the re-execution-only
+ * Pages: the home page, the explorer (/rollups), the legal pages, /r/sdiqt-1 and the re-execution-only
  * rollup with the most batches, read from /api/rollups.
  *
  *   node apps/explorer/scripts/check-links.mjs [base] (default http://localhost:5320)
@@ -43,6 +43,7 @@ const PAGES = [
   "/",
   "/r/sdiqt-1",
   ...(reexec ? [`/r/${encodeURIComponent(reexec)}`] : []),
+  "/rollups",
   "/privacy",
   "/terms",
 ];

@@ -121,7 +121,7 @@ function RollupHead(p: {
   const pending = p.rows.filter((r) => r.settlement === "pending");
   return (
     <section className="section rollup-head" aria-labelledby="rollup-title">
-      <Link to="/#rollups" className="rollup-back t-small">
+      <Link to="/rollups" className="rollup-back t-small">
         <ArrowLeft size={14} aria-hidden="true" /> All Rollups
       </Link>
       <div className="rollup-head-grid">

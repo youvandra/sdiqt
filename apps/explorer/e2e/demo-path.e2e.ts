@@ -1,6 +1,6 @@
 /**
- * The demo path a judge follows: open the explorer, pick the reference rollup
- * from the list of every qledger rollup, open a proven batch,
+ * The demo path a judge follows: open the landing, go to the explorer, pick the
+ * reference rollup from the list of every qledger rollup, open a proven batch,
  * verify its STARK proof in the browser, then flip one byte and watch the
  * verifier reject it.
  */
@@ -28,6 +28,11 @@ test("list, batch, browser verify, flip one byte", async ({ page }) => {
 
   await page.goto("/");
   await expect(page).toHaveTitle("SDIQT · Proof that outlives the chain");
+  await page
+    .getByRole("navigation", { name: "Sections" })
+    .getByRole("link", { name: "Explorer" })
+    .click();
+  await expect(page).toHaveURL(/\/rollups$/);
   const rollups = page.getByRole("list", { name: "Rollups" });
   await expect(rollups.getByRole("link")).not.toHaveCount(0);
   await rollups.getByRole("link").filter({ hasText: "sdiqt-1" }).click();
@@ -67,7 +72,7 @@ test("an other team's rollup shows re-execution only", async ({ page }) => {
   expect(Number(pick.batches), `${pick.rollup_id} has archived batches`).toBeGreaterThan(0);
   const id = pick.rollup_id;
 
-  await page.goto("/");
+  await page.goto("/rollups");
   const rollups = page.getByRole("list", { name: "Rollups" });
   await expect(rollups.getByText("STARK + Re-executed", { exact: true })).toHaveCount(1);
   await expect(rollups.getByText("Re-executed", { exact: true })).not.toHaveCount(0);

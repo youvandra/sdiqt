@@ -11,7 +11,7 @@ import {
   SPECS_URL,
 } from "../lib/links.ts";
 import { Logo } from "./Logo.tsx";
-import { SECTIONS } from "./Nav.tsx";
+import { EXPLORER, SECTIONS } from "./Nav.tsx";
 import { Hash } from "./Ui.tsx";
 
 export function Footer() {
@@ -42,6 +42,9 @@ export function Footer() {
                 {s.label}
               </Link>
             ))}
+            <Link className="t-small" to={EXPLORER.to}>
+              {EXPLORER.label}
+            </Link>
           </div>
           <div className="footer-col">
             <span className="t-small-strong">Project</span>

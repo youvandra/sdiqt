@@ -8,9 +8,12 @@ import { Logo } from "./Logo.tsx";
 export const SECTIONS = [
   { id: "verify", label: "Verify" },
   { id: "how-it-works", label: "How It Works" },
-  { id: "rollups", label: "Rollups" },
   { id: "security", label: "Security" },
 ] as const;
+
+/** The explorer lives on its own route; rollup pages sit under it. */
+export const EXPLORER = { to: "/rollups", label: "Explorer" } as const;
+const inExplorer = (path: string) => path === "/rollups" || path.startsWith("/r/");
 
 /** The section whose top passed the nav last, on the home page. */
 function useActiveSection(enabled: boolean): string | undefined {
@@ -70,6 +73,9 @@ export function Nav() {
               {s.label}
             </Link>
           ))}
+          <Link to={EXPLORER.to} className="nav-link" data-active={inExplorer(pathname)}>
+            {EXPLORER.label}
+          </Link>
           <a className="nav-link" href={PROOF_URL} target="_blank" rel="noreferrer">
             Evidence
           </a>
@@ -104,6 +110,9 @@ export function Nav() {
               {s.label}
             </Link>
           ))}
+          <Link to={EXPLORER.to} className="t-large">
+            {EXPLORER.label}
+          </Link>
           <a className="t-large" href={PROOF_URL} target="_blank" rel="noreferrer">
             Evidence
           </a>
