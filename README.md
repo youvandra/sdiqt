@@ -73,7 +73,7 @@ As of 26 Nov 2026 10:10 UTC, from [`/api/rollups`](https://sdiqt.xyz/api/rollups
 
 "Batches checked" counts the current submission at each batch index. Each of the 14 mismatching submissions claimed roots that differ from a re-execution of its inbox range; QoreChain rejected each one through an upheld fraud proof, and a later submission at the same index took its place, so the 1,654 submissions on record are the 1,640 current batches plus those 14. The `sdiqt-1` mismatch is the staged batch described under [Evidence](#evidence). On `sdiqt-1`, all 14 current batches are proven by a STARK; the median time from batch submit to QSTR post is 2 min 15 s ([PROOF.md](PROOF.md)).
 
-The explorer lists every rollup at [sdiqt.xyz](https://sdiqt.xyz/#rollups), with one page per rollup at `https://sdiqt.xyz/r/<rollup>`. The API serves each rollup at `/api/r/<rollup>/{health,batches,batches/<i>,receipts/<i>}`; `sdiqt-1` keeps its routes at `/api`.
+The explorer lists every rollup at [sdiqt.xyz/rollups](https://sdiqt.xyz/rollups), with one page per rollup at `https://sdiqt.xyz/r/<rollup>`. The API serves each rollup at `/api/r/<rollup>/{health,batches,batches/<i>,receipts/<i>}`; `sdiqt-1` keeps its routes at `/api`.
 
 ## Trust model
 

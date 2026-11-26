@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Navigate, RouterProvider, useParams } from "react-router";
 import { Layout } from "./components/Layout.tsx";
+import { Explorer } from "./pages/Explorer.tsx";
 import { Home } from "./pages/Home.tsx";
 import { Privacy, Terms } from "./pages/Legal.tsx";
 import { NotFound } from "./pages/NotFound.tsx";
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { path: "/", element: <Home /> },
+      { path: "/rollups", element: <Explorer /> },
       { path: "/r/:id", element: <Rollup /> },
       { path: "/privacy", element: <Privacy /> },
       { path: "/terms", element: <Terms /> },
