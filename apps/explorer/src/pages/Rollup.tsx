@@ -1,9 +1,8 @@
 import type { ApiHealthV1 } from "@sdiqt/protocol";
 import { ArrowLeft, Hourglass } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { Badge } from "../components/Ui.tsx";
-import { BatchDrawer } from "../detail/BatchDrawer.tsx";
 import { api, usePolled } from "../lib/api.ts";
 import { SITE, useDocumentTitle } from "../lib/dom.ts";
 import { type Filter, NO_FILTER } from "../lib/filters.ts";
@@ -13,6 +12,11 @@ import { useNow } from "../lib/useNow.ts";
 import { Batches } from "../sections/Batches.tsx";
 import { Overview } from "../sections/Overview.tsx";
 import { NotFound } from "./NotFound.tsx";
+
+/** The drawer and its proof tools load only when a batch is opened. */
+const BatchDrawer = lazy(() =>
+  import("../detail/BatchDrawer.tsx").then((m) => ({ default: m.BatchDrawer })),
+);
 
 /** One rich page per rollup; `?batch=N` opens the batch drawer. */
 export function Rollup() {
@@ -102,7 +106,9 @@ function RollupPage({ view }: { view: RollupView }) {
         onOpen={onOpen}
       />
       {open !== null && /^[0-9]+$/.test(open) && (
-        <BatchDrawer key={`${open}:${verify}`} index={open} onClose={onClose} verify={verify} />
+        <Suspense fallback={null}>
+          <BatchDrawer key={`${open}:${verify}`} index={open} onClose={onClose} verify={verify} />
+        </Suspense>
       )}
     </>
   );
