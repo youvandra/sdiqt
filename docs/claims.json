@@ -63,16 +63,26 @@
       "tx": "D4E2A450F041A503B15C6B971C37ABF119F61F3C32DF9D1457FFF6C17D954619",
       "action": "/qorechain.rdk.v1.MsgExecuteWithdrawal",
       "signer": "demo_user"
+    },
+    {
+      "id": "exit-posted",
+      "claim": "The watchtower opened the demo user's ML-KEM-1024 sealed exit packet at its release height and posted the 2.5 QOR withdrawal from L2-A to the inbox (batch 5, proven by STARK)",
+      "tx": "C451E0592E1DF074F9B2F74F347B876B6F81A310E5C17C941B0B372C99B45F48",
+      "action": "/qorechain.rdk.v1.MsgPostRollupData",
+      "signer": "watchtower"
+    },
+    {
+      "id": "exit-withdrawal-executed",
+      "claim": "After batch 5 was final, MsgExecuteWithdrawal paid the sealed exit's 2.5 QOR to the demo user",
+      "tx": "E9C47252AEF6E76E98B240A48757E9A397AEC734A42941501D312F384EEC3F3E",
+      "action": "/qorechain.rdk.v1.MsgExecuteWithdrawal",
+      "signer": "demo_user"
     }
   ],
   "open": [
     {
       "requirement": "Watchtower challenge",
       "plan": "staged wrong-root batch challenged by the watchtower, bond slashed, receipt VOID"
-    },
-    {
-      "requirement": "ML-KEM exit packet",
-      "plan": "an offline user's sealed withdrawal opened by the watchtower at its release height and posted to the inbox"
     }
   ]
 }
