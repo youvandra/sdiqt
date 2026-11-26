@@ -49,7 +49,11 @@ fn main() -> ExitCode {
                 claim.inbox_from, claim.inbox_end, claim.chunks, m.sig_mode
             );
             println!("  state_root       {}", m.state_root);
-            println!("  withdrawals_root {}", m.withdrawals_root);
+            if m.withdrawals_root.is_empty() {
+                println!("  withdrawals_root (empty: no withdrawals in this batch)");
+            } else {
+                println!("  withdrawals_root {}", m.withdrawals_root);
+            }
             println!("  data_hash        {}", m.data_hash);
             println!("  manifest sha256  {}", hex::encode(m.hash()));
             ExitCode::SUCCESS
