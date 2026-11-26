@@ -28,10 +28,7 @@ test("list, batch, browser verify, flip one byte", async ({ page }) => {
 
   await page.goto("/");
   await expect(page).toHaveTitle("SDIQT · Proof that outlives the chain");
-  await page
-    .getByRole("navigation", { name: "Sections" })
-    .getByRole("link", { name: "Explorer" })
-    .click();
+  await page.getByRole("banner").getByRole("link", { name: "Explorer", exact: true }).click();
   await expect(page).toHaveURL(/\/rollups$/);
   const rollups = page.getByRole("list", { name: "Rollups" });
   await expect(rollups.getByRole("link")).not.toHaveCount(0);

@@ -1,12 +1,13 @@
 import type { ApiBatchDetailV1, ApiReceiptV1 } from "@sdiqt/protocol";
 import { Archive, Check, Download, Minus, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Badge, Hash, Segmented } from "../components/Ui.tsx";
 import { usePolled } from "../lib/api.ts";
 import { bundleName } from "../lib/bundle.ts";
 import { SITE, trapTab, useDocumentTitle } from "../lib/dom.ts";
 import { absolute, ago, axis, entries, fieldLabel, num, SETTLEMENT } from "../lib/format.ts";
-import { SITE_URL } from "../lib/links.ts";
+import { addressUrl, blockUrl, CHAIN_NOTE, SITE_URL, txUrl } from "../lib/links.ts";
 import { useRollup } from "../lib/rollup.ts";
 import { BrowserVerify } from "./BrowserVerify.tsx";
 
@@ -60,7 +61,8 @@ export function BatchDrawer({
   const subs = detail.data?.submissions;
   const current = subs?.[subs.length - 1];
 
-  return (
+  // Rendered on <body>: no page stacking context can put the nav or footer over it.
+  return createPortal(
     <div className="drawer-root">
       <button
         type="button"
@@ -112,7 +114,9 @@ export function BatchDrawer({
               )}
               <span className="t-small">
                 {entries(current.inbox_from, current.inbox_end)} · height{" "}
-                {num(current.submit_height)}
+                <ChainLink href={blockUrl(current.submit_height)}>
+                  {num(current.submit_height)}
+                </ChainLink>
               </span>
             </div>
           )}
@@ -142,9 +146,11 @@ export function BatchDrawer({
           )}
           {current && tab === "receipt" && <ReceiptTab index={index} s={current} />}
           {subs && tab === "history" && <HistoryTab subs={subs} />}
+          {current && <ChainNote />}
         </div>
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -277,11 +283,11 @@ function OverviewTab({ s, stark }: { s: Submission; stark: boolean }) {
           </dd>
           <dt>Submit tx</dt>
           <dd>
-            <Hash value={s.submit_tx} />
+            <Hash value={s.submit_tx} href={txUrl(s.submit_tx)} />
           </dd>
           <dt>Submitter</dt>
           <dd>
-            <Hash value={s.submitter} head={10} tail={6} />
+            <Hash value={s.submitter} head={10} tail={6} href={addressUrl(s.submitter)} />
           </dd>
           <dt>Submitted</dt>
           <dd>
@@ -349,7 +355,7 @@ function ProofTab({ index, s, autoVerify }: { index: string; s: Submission; auto
             <Hash value={c.proof_root} />
           </dd>
           <dt>QSTR tx</dt>
-          <dd>{s.qstr_tx ? <Hash value={s.qstr_tx} /> : "Not posted"}</dd>
+          <dd>{s.qstr_tx ? <Hash value={s.qstr_tx} href={txUrl(s.qstr_tx)} /> : "Not posted"}</dd>
         </dl>
       </Panel>
       <BrowserVerify index={index} s={s} claim={c} autoRun={autoVerify} />
@@ -434,7 +440,12 @@ function ReceiptTab({ index, s }: { index: string; s: Submission }) {
             <dl className="kv kv-tight">
               <dt>Issuer</dt>
               <dd>
-                <Hash value={receipt.data.body.issuer} head={10} tail={6} />
+                <Hash
+                  value={receipt.data.body.issuer}
+                  head={10}
+                  tail={6}
+                  href={addressUrl(receipt.data.body.issuer)}
+                />
               </dd>
               <dt>Deadline</dt>
               <dd>{absolute(receipt.data.body.challenge_deadline)}</dd>
@@ -508,10 +519,12 @@ function HistoryTab({ subs }: { subs: Submission[] }) {
           <dl className="kv kv-tight">
             <dt>Submit tx</dt>
             <dd>
-              <Hash value={s.submit_tx} />
+              <Hash value={s.submit_tx} href={txUrl(s.submit_tx)} />
             </dd>
             <dt>Height</dt>
-            <dd>{num(s.submit_height)}</dd>
+            <dd>
+              <ChainLink href={blockUrl(s.submit_height)}>{num(s.submit_height)}</ChainLink>
+            </dd>
             <dt>Re-execution</dt>
             <dd>
               {s.judged === "match"
@@ -529,7 +542,10 @@ function HistoryTab({ subs }: { subs: Submission[] }) {
                   <>
                     <dt>Challenge tx</dt>
                     <dd>
-                      <Hash value={s.challenge.challenge_tx} />
+                      <Hash
+                        value={s.challenge.challenge_tx}
+                        href={txUrl(s.challenge.challenge_tx)}
+                      />
                     </dd>
                   </>
                 )}
@@ -537,7 +553,10 @@ function HistoryTab({ subs }: { subs: Submission[] }) {
                   <>
                     <dt>Resubmitted</dt>
                     <dd>
-                      <Hash value={s.challenge.resubmitted_tx} />
+                      <Hash
+                        value={s.challenge.resubmitted_tx}
+                        href={txUrl(s.challenge.resubmitted_tx)}
+                      />
                     </dd>
                   </>
                 )}
@@ -548,4 +567,24 @@ function HistoryTab({ subs }: { subs: Submission[] }) {
       ))}
     </ol>
   );
+}
+
+/** A chain value that opens on QoreChain Explorer in a new tab. */
+function ChainLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a
+      className="chain-link"
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      title="Open on QoreChain Explorer"
+    >
+      {children}
+    </a>
+  );
+}
+
+/** One line under the chain links: the explorer opens on mainnet by default. */
+function ChainNote() {
+  return <p className="chain-note t-caption">{CHAIN_NOTE}</p>;
 }

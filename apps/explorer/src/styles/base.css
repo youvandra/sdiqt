@@ -6,10 +6,15 @@
   box-sizing: border-box;
 }
 
+/* The page colour sits on html only: a body background would cover the grain. */
+html {
+  color-scheme: dark;
+  background: var(--base);
+}
+
 html,
 body {
   margin: 0;
-  background: var(--base);
   color: var(--text);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -19,6 +24,12 @@ body {
 body {
   min-height: 100vh;
   overflow-x: hidden;
+}
+
+/* Thin dark scrollbars inside panels, tables and code blocks */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--base-20) transparent;
 }
 
 h1,
@@ -47,16 +58,11 @@ button {
 .noise {
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   background-image: url("/brand/noise.png");
   background-repeat: repeat;
   opacity: 0.06;
-}
-.main,
-.footer {
-  position: relative;
-  z-index: 1;
 }
 
 :focus-visible {

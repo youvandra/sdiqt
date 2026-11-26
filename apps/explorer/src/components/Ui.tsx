@@ -1,4 +1,4 @@
-import { Check, Copy } from "lucide-react";
+import { ArrowUpRight, Check, Copy } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { shortHash, type Tone } from "../lib/format.ts";
 
@@ -24,10 +24,13 @@ export function Hash({
   value,
   head = 8,
   tail = 6,
+  href,
 }: {
   value: string;
   head?: number;
   tail?: number;
+  /** QoreChain Explorer page for this value, opened in a new tab. */
+  href?: string | undefined;
 }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -41,7 +44,20 @@ export function Hash({
   };
   return (
     <span className="hash" title={value}>
-      <span className="hash-text">{shortHash(value, head, tail)}</span>
+      {href ? (
+        <a
+          className="hash-text hash-link"
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          title={`${value}, open on QoreChain Explorer`}
+        >
+          {shortHash(value, head, tail)}
+          <ArrowUpRight size={12} aria-hidden="true" />
+        </a>
+      ) : (
+        <span className="hash-text">{shortHash(value, head, tail)}</span>
+      )}
       <button type="button" onClick={copy} aria-label={copied ? "Copied" : "Copy"}>
         {copied ? <Check size={14} /> : <Copy size={14} />}
       </button>

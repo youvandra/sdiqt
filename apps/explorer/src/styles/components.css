@@ -249,6 +249,13 @@
 .nav-burger {
   display: none;
 }
+/* Explorer: the one route button, beside the GitHub mark */
+.nav-cta {
+  margin-right: 4px;
+}
+.nav-cta[data-active="true"] {
+  background: var(--base-12);
+}
 .nav-menu {
   position: fixed;
   inset: var(--nav-height) 0 0 0;
@@ -271,7 +278,8 @@
   .nav-inner {
     grid-template-columns: 1fr auto;
   }
-  .nav-links {
+  .nav-links,
+  .nav-cta {
     display: none;
   }
   .nav-burger {
@@ -371,6 +379,30 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Chain values that open on QoreChain Explorer */
+.hash-link,
+.chain-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--base-20);
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--hover-duration) var(--ease-out);
+}
+.hash-link:hover,
+.chain-link:hover {
+  text-decoration-color: var(--fill);
+}
+.hash-link svg {
+  flex: none;
+  color: var(--text-placeholder);
+}
+.chain-note {
+  margin-top: 4px;
+  color: var(--text-placeholder);
+}
 .hash button {
   display: inline-flex;
   padding: 4px;
@@ -436,7 +468,6 @@
   gap: 40px;
   padding: 48px 0 32px;
   border-top: 1px solid var(--border);
-  background: var(--base);
 }
 .footer-content {
   display: flex;
