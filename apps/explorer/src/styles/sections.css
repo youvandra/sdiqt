@@ -1129,3 +1129,55 @@ section[id] {
   gap: 8px 20px;
   color: var(--text-subtle);
 }
+
+/* ---------- Touch targets ----------
+ * Phones and touch screens get 40 px hit areas. Where the visible control is
+ * smaller, padding grows the hit box and a matching negative margin keeps the
+ * layout as drawn. Same query as TOUCH in lib/dom.ts.
+ */
+@media (max-width: 809px), (pointer: coarse) {
+  .hash button {
+    padding: 13px;
+    margin: -9px;
+  }
+  .seg button {
+    min-height: 40px;
+  }
+  .btn-sm {
+    height: 40px;
+  }
+  .rollup-back,
+  .limits-link {
+    padding: 11px 0;
+    margin: -11px 0;
+  }
+  .logo {
+    padding: 8px 0;
+    margin: -8px 0;
+  }
+  .footer-col {
+    gap: 0;
+  }
+  .footer-col a {
+    padding: 11px 0;
+  }
+  /* Each cell keeps its 14 x 28 bar, centred in a 40 x 40 button. */
+  .ribbon {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 40px);
+    gap: 0;
+    margin: 0 -13px;
+  }
+  .ribbon-cell {
+    width: 40px;
+    height: 40px;
+    padding: 6px 13px;
+    border-radius: 6px;
+  }
+  .ribbon-cell span:first-child {
+    border-radius: 4px 4px 0 0;
+  }
+  .ribbon-cell span:last-child {
+    border-radius: 0 0 4px 4px;
+  }
+}

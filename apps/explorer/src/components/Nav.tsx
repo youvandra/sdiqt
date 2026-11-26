@@ -1,5 +1,5 @@
 import { Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { REPO_URL } from "../lib/links.ts";
 import { GitHubMark } from "./Icons.tsx";
@@ -47,6 +47,19 @@ export function Nav() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: close the menu on every navigation
   useEffect(() => setOpen(false), [pathname, hash]);
 
+  // Esc closes the open menu and puts focus back on the menu button.
+  const burgerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      burgerRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
     <header className="nav" data-scrolled={scrolled || open}>
       <div className="nav-inner">
@@ -70,6 +83,7 @@ export function Nav() {
             <GitHubMark />
           </a>
           <button
+            ref={burgerRef}
             type="button"
             className="icon-btn nav-burger"
             aria-label={open ? "Close menu" : "Open menu"}
