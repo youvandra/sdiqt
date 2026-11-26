@@ -1,6 +1,13 @@
 # SDIQT
 
-![SDIQT: every rollup batch, proven and signed](docs/cover.png)
+[![Built on QoreChain](https://build.qorechain.io/badge/sdiqt.svg)](https://build.qorechain.io/p/sdiqt)
+[![verify](https://github.com/youvandra/sdiqt/actions/workflows/verify.yml/badge.svg?branch=main)](https://github.com/youvandra/sdiqt/actions/workflows/verify.yml)
+[![demo path](https://github.com/youvandra/sdiqt/actions/workflows/e2e.yml/badge.svg?branch=main)](https://github.com/youvandra/sdiqt/actions/workflows/e2e.yml)
+[![uptime](https://github.com/youvandra/sdiqt/actions/workflows/uptime.yml/badge.svg)](https://github.com/youvandra/sdiqt/actions/workflows/uptime.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/youvandra/sdiqt/badge)](https://scorecard.dev/viewer/?uri=github.com/youvandra/sdiqt)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+![SDIQT, proof that outlives the chain](docs/cover.png)
 
 SDIQT gives every batch of a QoreChain qledger rollup a hash-based STARK proof that anyone can check in a browser. On the diana testnet, all 14 batches of the rollup `sdiqt-1` are proven, two withdrawals were paid from proven batches, and one of them reached the chain through a sealed ML-KEM exit packet. A wrong-root batch staged on purpose was rejected by a fraud proof 7 s after it landed. The same watchtower re-executes every other qledger-v1 rollup on diana from its public inbox: 11 rollups and 1,640 batches checked, 14 mismatching submissions found, and QoreChain rejected all 14.
 
