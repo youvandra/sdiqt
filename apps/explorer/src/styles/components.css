@@ -249,6 +249,13 @@
 .nav-burger {
   display: none;
 }
+/* Explorer: the one route button, beside the GitHub mark */
+.nav-cta {
+  margin-right: 4px;
+}
+.nav-cta[data-active="true"] {
+  background: var(--base-12);
+}
 .nav-menu {
   position: fixed;
   inset: var(--nav-height) 0 0 0;
@@ -271,7 +278,8 @@
   .nav-inner {
     grid-template-columns: 1fr auto;
   }
-  .nav-links {
+  .nav-links,
+  .nav-cta {
     display: none;
   }
   .nav-burger {
@@ -436,7 +444,6 @@
   gap: 40px;
   padding: 48px 0 32px;
   border-top: 1px solid var(--border);
-  background: var(--base);
 }
 .footer-content {
   display: flex;

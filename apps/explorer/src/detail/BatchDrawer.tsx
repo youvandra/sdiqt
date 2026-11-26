@@ -1,6 +1,7 @@
 import type { ApiBatchDetailV1, ApiReceiptV1 } from "@sdiqt/protocol";
 import { Archive, Check, Download, Minus, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Badge, Hash, Segmented } from "../components/Ui.tsx";
 import { usePolled } from "../lib/api.ts";
 import { bundleName } from "../lib/bundle.ts";
@@ -60,7 +61,8 @@ export function BatchDrawer({
   const subs = detail.data?.submissions;
   const current = subs?.[subs.length - 1];
 
-  return (
+  // Rendered on <body>: no page stacking context can put the nav or footer over it.
+  return createPortal(
     <div className="drawer-root">
       <button
         type="button"
@@ -144,7 +146,8 @@ export function BatchDrawer({
           {subs && tab === "history" && <HistoryTab subs={subs} />}
         </div>
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

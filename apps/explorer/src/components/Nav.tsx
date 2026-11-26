@@ -73,14 +73,19 @@ export function Nav() {
               {s.label}
             </Link>
           ))}
-          <Link to={EXPLORER.to} className="nav-link" data-active={inExplorer(pathname)}>
-            {EXPLORER.label}
-          </Link>
           <a className="nav-link" href={PROOF_URL} target="_blank" rel="noreferrer">
             Evidence
           </a>
         </nav>
         <div className="nav-end">
+          <Link
+            to={EXPLORER.to}
+            className="btn btn-sm btn-primary nav-cta"
+            data-active={inExplorer(pathname)}
+            aria-current={inExplorer(pathname) ? "page" : undefined}
+          >
+            {EXPLORER.label}
+          </Link>
           <a
             className="icon-btn"
             href={REPO_URL}
