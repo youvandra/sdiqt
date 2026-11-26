@@ -1534,6 +1534,7 @@ section[id] {
   .live-part::before {
     content: none;
   }
+  .live-strong,
   .live-part {
     margin-right: 12px;
   }
