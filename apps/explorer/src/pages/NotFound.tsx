@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { SITE, useDocumentTitle } from "../lib/dom.ts";
 
 /** Keeps search engines from indexing a path that has no page. */
@@ -16,6 +16,7 @@ function useNoIndex() {
 export function NotFound() {
   useDocumentTitle(`Page not found · ${SITE}`);
   useNoIndex();
+  const rollup = useLocation().pathname.startsWith("/r/");
   return (
     <section className="section not-found" aria-labelledby="nf-title">
       <div className="section-head">
@@ -23,9 +24,13 @@ export function NotFound() {
         <h1 className="t-h2" id="nf-title">
           This page is missing.
         </h1>
-        <p className="t-body">Every rollup and every batch opens from the explorer home.</p>
+        <p className="t-body">
+          {rollup
+            ? "SDIQT watches no rollup by that name. Every watched rollup is listed on the home page."
+            : "Every rollup and every batch opens from the home page."}
+        </p>
         <Link to="/" className="btn btn-primary">
-          Open Explorer
+          Go to Home
         </Link>
       </div>
     </section>

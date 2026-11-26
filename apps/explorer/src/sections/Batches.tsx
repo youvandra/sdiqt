@@ -1,6 +1,6 @@
-import { Check, ChevronRight, Search, X } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Badge, SectionHead, Segmented } from "../components/Ui.tsx";
+import { SectionHead, Segmented, Status } from "../components/Ui.tsx";
 import { type Filter, matches, NO_FILTER } from "../lib/filters.ts";
 import {
   absolute,
@@ -40,9 +40,7 @@ export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Pro
   return (
     <section className="section" id="batches" aria-labelledby="batches-title">
       <SectionHead eyebrow="Batches" title="Every batch, checked twice." id="batches-title">
-        {tier === "stark"
-          ? "Newest first. Open a batch to compare its chain roots with the re-execution and the proof claim, and to read its signed receipts."
-          : "Newest first. Open a batch to compare its chain roots with the re-execution and to read its signed receipts."}
+        Newest first. Open a batch to compare its roots and read its signed receipts.
       </SectionHead>
 
       <div className="toolbar">
@@ -91,21 +89,14 @@ export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Pro
           <span>Batch</span>
           <span>Inbox</span>
           <span>Submitted</span>
-          {tier === "stark" ? (
-            <>
-              <span className="c-center">Re-execution</span>
-              <span>Proof</span>
-            </>
-          ) : (
-            <span>Re-execution</span>
-          )}
+          <span>{tier === "stark" ? "Proof" : "Re-execution"}</span>
           <span>Settlement</span>
           <span aria-hidden="true" />
         </div>
 
         {error && rows.length === 0 && (
-          <div className="notice" data-tone="bad" role="alert">
-            The watchtower API is unreachable: {error}
+          <div className="notice" data-tone="bad" role="alert" title={error}>
+            The watchtower is unreachable right now. This page retries on its own.
           </div>
         )}
         {loading && rows.length === 0 && !error && <SkeletonRows />}
@@ -159,10 +150,16 @@ export function Batches({ rows, loading, error, filter, setFilter, onOpen }: Pro
   );
 }
 
+/** Quiet text for the normal end state of each axis; pills for everything else. */
+const QUIET_VALIDITY = new Set(["proven"]);
+const QUIET_SETTLEMENT = new Set(["final"]);
+
 function Row({ r, onOpen, stark }: { r: BatchRow; onOpen: (i: string) => void; stark: boolean }) {
   const s = SETTLEMENT[r.settlement];
   const v = axis(stark ? "stark" : "reexec").of(r.validity);
-  const match = r.judged === "match";
+  const wrongRoot = stark && r.judged === "mismatch" && r.validity !== "mismatch";
+  const rejectedBefore = Number(r.submissions) - 1;
+  const quietV = stark ? QUIET_VALIDITY.has(r.validity) : r.validity === "unproven";
   return (
     <button type="button" className="btable-row" onClick={() => onOpen(r.batch_index)}>
       <span className="c-batch">
@@ -175,35 +172,32 @@ function Row({ r, onOpen, stark }: { r: BatchRow; onOpen: (i: string) => void; s
       </span>
       <span className="t-small" title={r.submitted_time ? absolute(r.submitted_time) : undefined}>
         {r.submitted_time ? ago(r.submitted_time) : "Unknown"}
-        <span className="c-sub">Height {num(r.submit_height)}</span>
-      </span>
-      {stark && (
-        <span
-          className="c-center"
-          title={match ? "Same roots as the chain" : "Roots differ from the chain"}
-        >
-          {match ? (
-            <Check size={20} aria-label="Match" />
-          ) : (
-            <X size={20} aria-label="Mismatch" className="c-bad" />
-          )}
-        </span>
-      )}
-      <span>
-        <Badge tone={v.tone} title={v.hint}>
-          {v.label}
-        </Badge>
+        <span className="c-sub">Block {num(r.submit_height)}</span>
       </span>
       <span>
-        <Badge tone={s.tone} title={s.hint}>
-          {s.label}
-        </Badge>
-        {r.submissions !== "1" && (
-          <span className="c-sub">{Number(r.submissions) - 1} rolled back</span>
+        <Status tone={v.tone} label={v.label} hint={v.hint} quiet={quietV} />
+        {wrongRoot && <span className="c-sub c-bad-text">Wrong root</span>}
+      </span>
+      <span>
+        <Status
+          tone={s.tone}
+          label={s.label}
+          hint={s.hint}
+          quiet={QUIET_SETTLEMENT.has(r.settlement)}
+        />
+        {rejectedBefore > 0 && (
+          <span className="tag" data-tone="accent">
+            {rejectedBefore} rejected before
+          </span>
         )}
       </span>
       <span className="c-chev" aria-hidden="true">
         <ChevronRight size={18} />
+      </span>
+      <span className="m-line t-caption">
+        {[`${v.label}`, s.label, r.submitted_time ? ago(r.submitted_time) : undefined]
+          .filter(Boolean)
+          .join(" · ")}
       </span>
     </button>
   );

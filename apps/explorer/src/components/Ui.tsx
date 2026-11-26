@@ -9,7 +9,7 @@ export function Badge({
 }: {
   tone: Tone;
   children: ReactNode;
-  title?: string;
+  title?: string | undefined;
 }) {
   return (
     <span className="badge" data-tone={tone} title={title}>
@@ -49,19 +49,54 @@ export function Hash({
   );
 }
 
+/**
+ * Status in a table cell. The normal state of a column is quiet text with a
+ * dot; any other state gets a pill, so exceptions stand out in a long list.
+ */
+export function Status({
+  tone,
+  label,
+  hint,
+  quiet,
+}: {
+  tone: Tone;
+  label: string;
+  hint?: string | undefined;
+  quiet: boolean;
+}) {
+  if (!quiet)
+    return (
+      <Badge tone={tone} title={hint}>
+        {label}
+      </Badge>
+    );
+  return (
+    <span className="status" data-tone={tone} title={hint}>
+      <span className="dot" aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
+/** Eyebrow, heading and one-line lead. Left-aligned unless `center`. */
 export function SectionHead(p: {
   eyebrow: string;
   title: string;
   children?: ReactNode;
   id?: string;
+  center?: boolean;
+  aside?: ReactNode;
 }) {
   return (
-    <div className="section-head">
-      <span className="eyebrow">{p.eyebrow}</span>
-      <h2 className="t-h2" id={p.id}>
-        {p.title}
-      </h2>
-      {p.children && <p className="t-body">{p.children}</p>}
+    <div className="section-head" data-center={p.center === true}>
+      <div className="section-head-text">
+        <span className="eyebrow">{p.eyebrow}</span>
+        <h2 className="t-h2" id={p.id}>
+          {p.title}
+        </h2>
+        {p.children && <p className="t-body">{p.children}</p>}
+      </div>
+      {p.aside && <div className="section-head-aside">{p.aside}</div>}
     </div>
   );
 }

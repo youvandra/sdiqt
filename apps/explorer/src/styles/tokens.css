@@ -30,6 +30,8 @@
   /* Layout */
   --content-max: 1128px;
   --gutter: 24px;
+  /* Width inside the gutters: nav, sections and footer share it. */
+  --content-width: calc(var(--content-max) - 2 * var(--gutter));
   --nav-height: 64px;
   --radius-pill: 100px;
   --radius-button: 48px;
@@ -45,7 +47,7 @@
   /* Motion: ease-out, no overshoot */
   --ease-out: cubic-bezier(0.12, 0.23, 0.5, 1);
   --ease-appear: cubic-bezier(0.12, 0.23, 0.17, 0.99);
-  --hover-duration: 0.4s;
+  --hover-duration: 0.15s;
 }
 
 @font-face {

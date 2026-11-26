@@ -1,6 +1,5 @@
 import type { ApiHealthV1, ApiRollupSummaryV1, CountsV1 } from "@sdiqt/protocol";
 import { Hourglass } from "lucide-react";
-import { SectionHead } from "../components/Ui.tsx";
 import { TOUCH, useMediaQuery } from "../lib/dom.ts";
 import type { Filter } from "../lib/filters.ts";
 import {
@@ -19,6 +18,8 @@ import { useNow } from "../lib/useNow.ts";
 
 interface Props {
   rows: BatchRow[];
+  /** First load still running: numbers read "Reading", never a false zero. */
+  loading: boolean;
   health: ApiHealthV1 | undefined;
   /** PROOF.md numbers at one chain height; null when not deployed. */
   counts: CountsV1 | null;
@@ -28,7 +29,7 @@ interface Props {
   onFilter: (f: Partial<Filter>) => void;
 }
 
-export function Overview({ rows, health, counts, summary, onOpen, onFilter }: Props) {
+export function Overview({ rows, loading, health, counts, summary, onOpen, onFilter }: Props) {
   const { tier } = useRollup();
   const total = rows.length;
   const final = rows.filter((r) => r.settlement === "final").length;
@@ -46,30 +47,22 @@ export function Overview({ rows, health, counts, summary, onOpen, onFilter }: Pr
   const rolledBack = rows.reduce((n, r) => n + Number(r.submissions) - 1, 0);
   const entriesTotal = rows.reduce((n, r) => n + entryCount(r.inbox_from, r.inbox_end), 0);
 
-  return (
-    <section className="section overview" id="overview" aria-labelledby="overview-title">
-      <div className="streak" aria-hidden="true" />
-      <SectionHead eyebrow="Live" title="The rollup at a glance." id="overview-title">
-        {tier === "stark"
-          ? "Two independent answers for every batch: QoreChain says whether it settled, the STARK says whether it was executed correctly."
-          : "Two answers for every batch: QoreChain says whether it settled, and SDIQT re-executes it from the public inbox to check the roots. Proofs run on sdiqt-1, the reference rollup."}
-      </SectionHead>
+  const reading = loading && total === 0;
+  const v = (x: string) => (reading ? undefined : x);
 
+  return (
+    <section className="section overview" id="overview" aria-label="Rollup at a glance">
       <div className="card stats-card">
-        <Stat
-          value={num(total)}
-          label="Batches tracked"
-          note={`${num(entriesTotal)} inbox entries`}
-        />
-        <Stat value={num(final)} label="Final on QoreChain" note={share(final)} />
+        <Stat value={v(num(total))} label="Batches" note={`${num(entriesTotal)} inbox entries`} />
+        <Stat value={v(num(final))} label="Final on QoreChain" note={share(final)} />
         {tier === "stark" ? (
-          <Stat value={num(proven)} label="Proven by a STARK" note={share(proven)} />
+          <Stat value={v(num(proven))} label="Proven by a STARK" note={share(proven)} />
         ) : (
           <>
-            <Stat value={num(matched)} label="Re-executed: match" note={share(matched)} />
+            <Stat value={v(num(matched))} label="Roots Match" note={share(matched)} />
             <Stat
-              value={num(found)}
-              label="Mismatching submissions"
+              value={v(num(found))}
+              label="Wrong Roots"
               note={
                 found === 0
                   ? "Every batch gives the chain's roots"
@@ -81,19 +74,19 @@ export function Overview({ rows, health, counts, summary, onOpen, onFilter }: Pr
         {tier === "stark" && counts?.proof_latency_s.median != null && (
           <Stat
             value={minutes(counts.proof_latency_s.median)}
-            label="Median proof time"
-            note={`${duration(counts.proof_latency_s.median)} from submit to QSTR post (PROOF.md)`}
+            label="Median Proof Time"
+            note={`${duration(counts.proof_latency_s.median)} from submit to QSTR post`}
           />
         )}
         <Stat
-          value={num(rolledBack)}
-          label="Submissions rolled back"
-          note="Removed by upheld fraud proofs"
+          value={v(num(rolledBack))}
+          label="Rejected Batches"
+          note="Rejected by an upheld fraud proof"
         />
       </div>
 
       <div className="overview-grid">
-        <Ribbon rows={rows} onOpen={onOpen} />
+        <Ribbon rows={rows} onOpen={onOpen} reading={reading} />
         <Matrix rows={rows} onFilter={onFilter} />
       </div>
 
@@ -107,10 +100,18 @@ function minutes(s: number): string {
   return s < 120 ? `${s} s` : `${Math.round(s / 60)} min`;
 }
 
-export function Stat({ value, label, note }: { value: string; label: string; note: string }) {
+export function Stat({
+  value,
+  label,
+  note,
+}: {
+  value: string | undefined;
+  label: string;
+  note: string;
+}) {
   return (
     <div className="stat">
-      <span className="stat-value">{value}</span>
+      <span className="stat-value">{value ?? <span className="tile-reading">Reading</span>}</span>
       <span className="t-small-strong">{label}</span>
       <span className="t-caption">{note}</span>
     </div>
@@ -122,7 +123,15 @@ const RIBBON_CELLS = 160;
 const RIBBON_CELLS_TOUCH = 49;
 
 /** Every batch in index order: top half settlement, bottom half validity. */
-function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => void }) {
+function Ribbon({
+  rows,
+  onOpen,
+  reading,
+}: {
+  rows: BatchRow[];
+  onOpen: (i: string) => void;
+  reading: boolean;
+}) {
   const { tier } = useRollup();
   const ax = axis(tier);
   const touch = useMediaQuery(TOUCH);
@@ -130,7 +139,7 @@ function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => voi
   return (
     <div className="card card-pad ribbon-card">
       <div className="card-head">
-        <span className="card-title">Batch ribbon</span>
+        <span className="card-title">Every Batch</span>
         <span className="t-caption">
           {rows.length > shown.length
             ? `Latest ${num(shown.length)} of ${num(rows.length)}`
@@ -138,7 +147,7 @@ function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => voi
         </span>
       </div>
       {shown.length === 0 ? (
-        <p className="t-small">No batches archived yet.</p>
+        <p className="t-small">{reading ? "Reading" : "No batches archived yet."}</p>
       ) : (
         <div className="ribbon">
           {shown.map((r) => {
@@ -181,7 +190,7 @@ function Ribbon({ rows, onOpen }: { rows: BatchRow[]; onOpen: (i: string) => voi
           </span>
         )}
         <span className="legend-group">
-          <span className="dot" data-tone="bad" /> Void / Mismatch
+          <span className="dot" data-tone="bad" /> Rejected / Wrong Root
         </span>
       </div>
     </div>
@@ -200,7 +209,9 @@ function Matrix({ rows, onFilter }: { rows: BatchRow[]; onFilter: (f: Partial<Fi
   return (
     <div className="card card-pad matrix-card">
       <div className="card-head">
-        <span className="card-title">Two axes</span>
+        <span className="card-title">
+          {ax.name === "Proof" ? "Settlement by Proof" : "Settlement by Re-execution"}
+        </span>
         <span className="t-caption">Select a cell to filter</span>
       </div>
       <div
@@ -243,7 +254,7 @@ function MatrixRow(p: {
             onClick={() => p.onFilter({ settlement: p.s, validity: v, query: "" })}
             aria-label={`${n} batches ${SETTLEMENT[p.s].label} and ${p.ax.of(v).label}`}
           >
-            {n}
+            {n > 0 ? n : ""}
           </button>
         );
       })}
@@ -260,7 +271,7 @@ function PendingWindows(p: {
   const pending = p.rows.filter((r) => r.settlement === "pending");
   const windowS = p.health?.challenge_window_s ? Number(p.health.challenge_window_s) : undefined;
   const now = useNow(1000, pending.length > 0);
-  if (pending.length === 0 || windowS === undefined) return null;
+  if (pending.length < 2 || windowS === undefined) return null;
   return (
     <div className="card card-pad windows-card">
       <div className="card-head">

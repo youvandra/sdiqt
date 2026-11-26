@@ -21,9 +21,7 @@ export function Footer() {
         <div className="footer-about">
           <Logo />
           <p className="t-small">
-            STARK validity receipts for QoreChain qledger rollups. Every batch of every qledger-v1
-            rollup on diana is re-executed and signed; every sdiqt-1 batch is also proven, and its
-            proof stays checkable after the chain prunes the batch.
+            Hash-based STARK proofs and post-quantum receipts for QoreChain qledger rollups.
           </p>
           <dl className="footer-facts">
             <dt>Chain</dt>
@@ -38,7 +36,7 @@ export function Footer() {
         </div>
         <div className="footer-nav">
           <div className="footer-col">
-            <span className="t-small-strong">Explorer</span>
+            <span className="t-small-strong">Site</span>
             {SECTIONS.map((s) => (
               <Link key={s.id} className="t-small" to={`/#${s.id}`}>
                 {s.label}

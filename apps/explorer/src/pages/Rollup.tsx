@@ -1,5 +1,5 @@
 import type { ApiHealthV1 } from "@sdiqt/protocol";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Hourglass } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { Badge } from "../components/Ui.tsx";
@@ -7,8 +7,9 @@ import { BatchDrawer } from "../detail/BatchDrawer.tsx";
 import { api, usePolled } from "../lib/api.ts";
 import { SITE, useDocumentTitle } from "../lib/dom.ts";
 import { type Filter, NO_FILTER } from "../lib/filters.ts";
-import { ago, duration, num } from "../lib/format.ts";
+import { ago, type BatchRow, duration, num } from "../lib/format.ts";
 import { RollupProvider, type RollupView, viewOf } from "../lib/rollup.ts";
+import { useNow } from "../lib/useNow.ts";
 import { Batches } from "../sections/Batches.tsx";
 import { Overview } from "../sections/Overview.tsx";
 import { NotFound } from "./NotFound.tsx";
@@ -82,9 +83,10 @@ function RollupPage({ view }: { view: RollupView }) {
 
   return (
     <>
-      <RollupHead view={view} health={health.data} error={health.error} />
+      <RollupHead view={view} health={health.data} error={health.error} rows={rows} />
       <Overview
         rows={rows}
+        loading={list.loading}
         counts={counts.data ?? null}
         summary={summary}
         health={health.data}
@@ -110,47 +112,70 @@ function RollupHead(p: {
   view: RollupView;
   health: ApiHealthV1 | undefined;
   error: string | undefined;
+  rows: BatchRow[];
 }) {
   const stark = p.view.tier === "stark";
   const h = p.health;
   // Set here, before the drawer below it, so the drawer's title restores to this one.
   useDocumentTitle(`${p.view.id} · ${SITE}`);
+  const pending = p.rows.filter((r) => r.settlement === "pending");
   return (
     <section className="section rollup-head" aria-labelledby="rollup-title">
-      <div className="section-head">
-        <Link to="/#rollups" className="rollup-back t-small">
-          <ArrowLeft size={14} aria-hidden="true" /> All Rollups
-        </Link>
-        <div className="rollup-title">
-          <h1 className="t-h2" id="rollup-title">
-            {p.view.id}
-          </h1>
-          <Badge tone={stark ? "ok" : "accent"}>
-            {stark ? "STARK + Re-execution" : "Re-execution"}
-          </Badge>
+      <Link to="/#rollups" className="rollup-back t-small">
+        <ArrowLeft size={14} aria-hidden="true" /> All Rollups
+      </Link>
+      <div className="rollup-head-grid">
+        <div className="rollup-head-text">
+          <div className="rollup-title">
+            <h1 className="t-h2" id="rollup-title">
+              {p.view.id}
+            </h1>
+            <Badge tone={stark ? "ok" : "accent"}>
+              {stark ? "STARK + Re-executed" : "Re-executed"}
+            </Badge>
+          </div>
+          <p className="t-body">
+            {stark
+              ? "The rollup SDIQT runs. Every current batch is re-executed, proven by a STARK and given a signed receipt."
+              : "A qledger-v1 rollup run by another team. SDIQT re-executes each batch from chain data and signs a receipt."}
+          </p>
         </div>
-        <p className="t-body">
-          {stark
-            ? "The rollup SDIQT runs. Every batch is re-executed, proven by a STARK and given a signed receipt."
-            : "A qledger-v1 rollup run by another team. SDIQT re-executes every batch from its public inbox and signs a receipt with the result."}
-        </p>
         <div className="rollup-facts t-small">
           {h ? (
             <>
-              <span>{h.status === "ok" ? "Watchtower online" : "Watchtower catching up"}</span>
-              {h.last_poll_at && <span>Checked {ago(h.last_poll_at)}</span>}
-              {h.last_poll_height && <span>Height {num(h.last_poll_height)}</span>}
+              <span className="rollup-fact" data-tone={h.status === "ok" ? "ok" : "bad"}>
+                <span className="dot" aria-hidden="true" />
+                {h.status === "ok" ? "Watchtower online" : "Watchtower behind"}
+                {h.last_poll_at && <span className="c-sub-inline">{ago(h.last_poll_at)}</span>}
+              </span>
+              {h.last_poll_height && <span>Block {num(h.last_poll_height)}</span>}
               {h.challenge_window_s && (
                 <span>Challenge window {duration(Number(h.challenge_window_s))}</span>
               )}
+              {pending.length === 1 && pending[0] && h.challenge_window_s && (
+                <WindowLeft row={pending[0]} windowS={Number(h.challenge_window_s)} />
+              )}
             </>
           ) : (
-            <span>
-              {p.error ? `Watchtower unreachable: ${p.error}` : "Connecting to the watchtower"}
+            <span title={p.error}>
+              {p.error ? "The watchtower is unreachable right now." : "Reading the watchtower"}
             </span>
           )}
         </div>
       </div>
     </section>
+  );
+}
+
+/** "Batch 16 settles in 36 min" for the one batch still in its challenge window. */
+function WindowLeft({ row, windowS }: { row: BatchRow; windowS: number }) {
+  const now = useNow(1000, true);
+  if (!row.submitted_time) return null;
+  const left = (Date.parse(row.submitted_time) + windowS * 1000 - now) / 1000;
+  return (
+    <span className="rollup-fact" data-tone="wait">
+      <Hourglass size={14} aria-hidden="true" />
+      Batch {row.batch_index} {left > 0 ? `settles in ${duration(left)}` : "is finalizing"}
+    </span>
   );
 }
