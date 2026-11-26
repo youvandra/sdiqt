@@ -7,6 +7,7 @@ coverage/
 
 # local data and secrets
 data/
+batch-*/
 secrets/
 *.env
 .env*

@@ -33,17 +33,17 @@ export function HowItWorks({
     },
     {
       title: "Re-execute",
-      body: "The watchtower replays the range from its archive and compares every root. A wrong root gets a fraud challenge.",
+      body: "The watchtower replays the range from its archive and compares every root. On sdiqt-1 a wrong root gets a fraud challenge; on every other qledger rollup the receipt reports it as a mismatch.",
       metric: `${num(matched)} of ${num(rows.length)} match`,
     },
     {
       title: "STARK + QSTR",
-      body: "The prover runs the same state transition inside SP1 and posts a QSTR commitment naming the proof bundle.",
+      body: "On sdiqt-1 the prover runs the same state transition inside SP1 and posts a QSTR commitment naming the proof bundle.",
       metric: `${num(proven)} proven`,
     },
     {
       title: "Signed receipt",
-      body: "The tower signs a receipt with ML-DSA-87 that holds both answers: settlement from the chain, validity from the proof.",
+      body: "The tower signs a receipt with ML-DSA-87 that holds both answers: settlement from the chain, validity from the proof on sdiqt-1 or from re-execution on the other rollups.",
       metric: last ? `Last ${ago(last.issued_at)}` : "No receipt yet",
     },
   ];
@@ -56,7 +56,8 @@ export function HowItWorks({
         title="From inbox entry to signed receipt."
         id="how-title"
       >
-        Five steps, each one checkable on its own. The numbers come from the live watchtower.
+        Five steps, each one checkable on its own. Every qledger rollup gets steps 1 to 3 and 5;
+        sdiqt-1 also gets the STARK. The numbers come from the live sdiqt-1 watchtower.
       </SectionHead>
       <ol className="steps">
         {steps.map((s, i) => (

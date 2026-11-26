@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ago, entries, SETTLEMENT, shortHash, VALIDITY } from "../src/lib/format.ts";
+import { ago, entries, fieldLabel, SETTLEMENT, shortHash, VALIDITY } from "../src/lib/format.ts";
 
 describe("format", () => {
   it("shortens long hashes in the middle and leaves short ones alone", () => {
@@ -24,5 +24,11 @@ describe("format", () => {
   it("labels a rejected batch Void and a proven one Proven", () => {
     expect(SETTLEMENT.rejected).toMatchObject({ label: "Void", tone: "bad" });
     expect(VALIDITY.proven).toMatchObject({ label: "Proven", tone: "ok" });
+  });
+
+  it("names root fields for readers in both API and manifest spelling", () => {
+    expect(fieldLabel("stateRoot")).toBe("State root");
+    expect(fieldLabel("withdrawals_root")).toBe("Withdrawals root");
+    expect(fieldLabel("other")).toBe("other");
   });
 });

@@ -6,7 +6,7 @@ const POINTS = [
   {
     icon: ShieldCheck,
     title: "Hash-based proofs",
-    body: "Each batch is proven with a STARK. Its security rests on hash functions, which hold up against the quantum attacks that break elliptic curves.",
+    body: "Each sdiqt-1 batch is proven with a STARK. Its security rests on hash functions, which hold up against the quantum attacks that break elliptic curves.",
   },
   {
     icon: KeyRound,
@@ -23,14 +23,15 @@ const POINTS = [
 const LIMITS = [
   "The watchtower and your browser verify the STARK off chain. QoreChain settles by its own fraud-proof rules.",
   "Chain data shown here is relayed by sdiqt.xyz. The receipts are signed, so you can check them without trusting the relay.",
-  "One prover runs on a single Mac during the testnet event. A slow prover shows up as Unproven, never as a false Proven.",
+  "One prover runs on a single Mac during the testnet event. A slow prover shows up as Unproven until the proof lands.",
+  "On other teams' qledger rollups the watchtower re-executes, signs receipts and reports wrong roots. STARK proofs and fraud challenges run on sdiqt-1.",
 ];
 
 export function Security() {
   return (
     <section className="section security" id="security" aria-labelledby="security-title">
       <div className="security-bg" aria-hidden="true" />
-      <SectionHead eyebrow="Security" title="Built for the day after Q-Day." id="security-title">
+      <SectionHead eyebrow="Security" title="Built for the day after Q‑Day." id="security-title">
         What the proofs and signatures guarantee, and where the guarantee stops.
       </SectionHead>
       <div className="security-grid">

@@ -5,7 +5,7 @@ import type { BatchRow } from "../lib/format.ts";
 import { REPO_URL } from "../lib/links.ts";
 
 const QUICK_START = `git clone ${REPO_URL} && cd sdiqt
-cargo install --path crates/sdiqt-verify
+cargo install --locked --path crates/sdiqt-verify
 sdiqt-verify bundle vectors/bundles/rdk-v328-e2e/batch-1-FACE91C06DA7`;
 
 /** The newest batch with a verified proof, if any. */

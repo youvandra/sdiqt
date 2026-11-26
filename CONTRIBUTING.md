@@ -2,7 +2,7 @@
 
 ## Setup
 
-- Rust stable (see `rust-toolchain.toml`) and Node.js 22.14 or newer with pnpm 10.
+- Rust stable (see `rust-toolchain.toml`) and Node.js 22.18 or newer with pnpm 10.
 - The SP1 guest and prover need the [SP1 toolchain](https://docs.succinct.xyz/docs/sp1/getting-started/install)
   (`sp1up`) and `protoc`. Host crates and the TypeScript packages build without them.
 

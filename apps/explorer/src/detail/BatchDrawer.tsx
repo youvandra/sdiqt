@@ -4,7 +4,8 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Badge, Hash, Segmented } from "../components/Ui.tsx";
 import { usePolled } from "../lib/api.ts";
 import { bundleName } from "../lib/bundle.ts";
-import { absolute, ago, axis, entries, num, SETTLEMENT } from "../lib/format.ts";
+import { absolute, ago, axis, entries, fieldLabel, num, SETTLEMENT } from "../lib/format.ts";
+import { SITE_URL } from "../lib/links.ts";
 import { useRollup } from "../lib/rollup.ts";
 import { BrowserVerify } from "./BrowserVerify.tsx";
 
@@ -198,7 +199,7 @@ function OverviewTab({ s, stark }: { s: Submission; stark: boolean }) {
           <span className="t-caption">
             {s.judged === "match"
               ? "Re-execution matches the chain"
-              : `${s.differs.length} field(s) differ`}
+              : `${num(s.differs.length)} ${s.differs.length === 1 ? "field differs" : "fields differ"}`}
           </span>
         }
       >
@@ -220,7 +221,11 @@ function OverviewTab({ s, stark }: { s: Submission; stark: boolean }) {
                 <div key={r.key} className="roots-row" data-differs={differs}>
                   <span className="t-small">{r.label}</span>
                   <span>
-                    <Hash value={chainValue} head={6} tail={4} />
+                    {chainValue === "" ? (
+                      <span className="t-small c-muted">Empty</span>
+                    ) : (
+                      <Hash value={chainValue} head={6} tail={4} />
+                    )}
                     {differs && r.key === "stateRoot" && honest && (
                       <span className="roots-honest t-caption">
                         Honest <Hash value={honest} head={6} tail={4} />
@@ -332,7 +337,11 @@ function ProofTab({ index, s, autoVerify }: { index: string; s: Submission; auto
       <BrowserVerify index={index} s={s} claim={c} autoRun={autoVerify} />
       <Panel
         title="Chunks"
-        aside={<span className="t-caption">{c.chunks.length} STARK proofs</span>}
+        aside={
+          <span className="t-caption">
+            {num(c.chunks.length)} STARK {c.chunks.length === 1 ? "proof" : "proofs"}
+          </span>
+        }
       >
         <ol className="chunks">
           {c.chunks.map((ch) => (
@@ -349,14 +358,28 @@ function ProofTab({ index, s, autoVerify }: { index: string; s: Submission; auto
       <Panel title="Verify it yourself">
         <p className="t-small">
           Download bundle <span className="t-mono">{bundleName(index, s.submit_tx)}</span> and run
-          the open-source verifier. It needs no chain access and gives the same answer after
-          QoreChain prunes the batch.
+          the open-source verifier. It works offline and gives the same answer after QoreChain
+          prunes the batch.
         </p>
-        <pre className="cmd">{`sdiqt-verify bundle ${bundleName(index, s.submit_tx)} \\
-  --vkey-hash ${c.program_vkey_hash}`}</pre>
+        <pre className="cmd">{verifyCommands(bundleName(index, s.submit_tx), c)}</pre>
       </Panel>
     </>
   );
+}
+
+/** Shell lines that fetch a bundle from sdiqt.xyz and verify it with the program pinned. */
+function verifyCommands(
+  name: string,
+  c: { chunks: { index: string }[]; program_vkey_hash: string },
+) {
+  const base = `${SITE_URL}/bundles/${name}`;
+  const files = ["manifest.json", ...c.chunks.map((ch) => `chunk-${ch.index}.bin`)];
+  return [
+    `mkdir -p ${name}`,
+    ...files.map((f) => `curl -sf --output-dir ${name} -O ${base}/${f}`),
+    `sdiqt-verify bundle ${name} \\`,
+    `  --vkey-hash ${c.program_vkey_hash}`,
+  ].join("\n");
 }
 
 function ReceiptTab({ index, s }: { index: string; s: Submission }) {
@@ -473,7 +496,9 @@ function HistoryTab({ subs }: { subs: Submission[] }) {
             <dd>{num(s.submit_height)}</dd>
             <dt>Re-execution</dt>
             <dd>
-              {s.judged === "match" ? "Matches the chain" : `Differs: ${s.differs.join(", ")}`}
+              {s.judged === "match"
+                ? "Matches the chain"
+                : `Differs: ${s.differs.map(fieldLabel).join(", ")}`}
             </dd>
             {s.challenge && (
               <>
