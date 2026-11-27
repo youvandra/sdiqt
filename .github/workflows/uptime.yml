@@ -106,11 +106,16 @@ jobs:
         run: |
           set -euo pipefail
           html=$(curl -fsS --max-time 15 https://sdiqt.xyz/)
-          if ! echo "$html" | grep -q "<title>SDIQT Explorer</title>"; then
+          # Match the brand prefix only: the page title is copy and changes with it.
+          if ! echo "$html" | grep -q "<title>SDIQT"; then
             echo "::error::https://sdiqt.xyz/ does not serve the explorer shell"
             exit 1
           fi
-          asset=$(echo "$html" | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+          asset=$(echo "$html" | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1 || true)
+          if [ -z "$asset" ]; then
+            echo "::error::https://sdiqt.xyz/ names no explorer bundle"
+            exit 1
+          fi
           code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "https://sdiqt.xyz${asset}")
           if [ "$code" != "200" ]; then
             echo "::error::explorer bundle ${asset} returned $code"
