@@ -9,7 +9,7 @@
 
 ![SDIQT, proof that outlives the chain](docs/cover.png)
 
-SDIQT gives every batch of a QoreChain qledger rollup a hash-based STARK proof that anyone can check in a browser. On the diana testnet all 18 current `sdiqt-1` batches are proven, two withdrawals were paid, one through a sealed ML-KEM exit, and a wrong root we staged was rejected 7 s after it landed. The same watchtower re-executes every qledger-v1 rollup on diana: 11 rollups, 1,644 batches, 14 wrong roots found and all 14 rejected by QoreChain.
+SDIQT gives every batch of a QoreChain qledger rollup a hash-based STARK proof that anyone can check in a browser. On the diana testnet all 21 current `sdiqt-1` batches are proven, two withdrawals were paid, one through a sealed ML-KEM exit, and a wrong root we staged was rejected 7 s after it landed. The same watchtower re-executes every qledger-v1 rollup on diana: 11 rollups, 1,644 batches, 14 wrong roots found and all 14 rejected by QoreChain.
 
 **Live:** https://sdiqt.xyz · **Video:** _placeholder, the link is added at submission_ · **Evidence:** [PROOF.md](PROOF.md)
 
@@ -100,7 +100,7 @@ The stack is Rust for the proof (SP1 6.10.0, a qledger-v1 port in `crates/qledge
 
 QoreChain's RDK carries the rollup: `MsgCreateRollup`, `MsgSubmitBatch`, `MsgPostRollupData`, `MsgChallengeBatch` and `MsgExecuteWithdrawal`. The PQC module holds the ML-DSA-87 keys of the operator, the watchtower and the demo user (`MsgRegisterPQCKeyV2`) and the watchtower's ML-KEM-1024 key (`MsgRegisterKEMKey`). QoreSeal seals exit packets to that key.
 
-The hardest part was memory. A 4-entry chunk proves in 145 to 192 s using about 10.3 to 10.8 GB on a 16 GB Apple M5; an 11-entry chunk fails during compression. The prover therefore splits a batch into chunks of at most 4 signed entries and 6.1M cycles, and each chunk starts from the root and inbox accumulator where the previous one ended, so the verifier links the chunks into one continuous execution from the batch's parent root. A 64-entry batch becomes 16 chunks, about 45 to 48 minutes on one machine by projection, inside the 3,300 s proof deadline ([calibration](docs/prover-calibration.md)).
+The hardest part was memory. A 4-entry chunk proves in 145 to 192 s using about 10.3 to 10.8 GB on a 16 GB Apple M5; an 11-entry chunk fails during compression. The prover therefore splits a batch into chunks of at most 4 signed entries and 6.1M cycles, and each chunk starts from the root and inbox accumulator where the previous one ended, so the verifier links the chunks into one continuous execution from the batch's parent root. A 64-entry batch becomes 16 chunks. Calibration projected 45 to 48 minutes on an idle machine, inside the 3,300 s proof deadline. The first measured 64-entry batch (batch 19 of `sdiqt-1`) took 4,341 s (72 minutes) of proving on the shared 16 GB Mac, about 18 minutes past the deadline: other apps pushed each 10 GB chunk into swap, so chunks ran at 233 to 383 s (median 266 s). A late proof leaves settlement optimistic and the receipt reads unproven until the proof lands. A dedicated prover with 32 GB or more keeps 64-entry batches inside the deadline ([calibration](docs/prover-calibration.md)).
 
 The guest must agree with the chain byte for byte. The golden RDK vectors run in CI, and a real batch of `rdk-v328-e2e-mwd5v89d`, a rollup run by another team, is in the repo: 5 entries, VALID, with the same roots as its chain record (tx `FACE91C06DA7…`, height 10195236).
 
@@ -137,15 +137,15 @@ At height 10799151 ([PROOF.md](PROOF.md)):
 
 | Count | Value |
 |---|---|
-| Batch submissions / current batches proven / final | 19 / 18 / 17 |
+| Batch submissions / current batches proven / final | 22 / 21 / 21 |
 | Submissions rejected by a challenge | 1 (the staged batch 12) |
-| User entries (deposits / transfers / withdrawals) | 19 (2 / 15 / 2) |
-| QSTR commitments posted | 18 |
+| User entries (deposits / transfers / withdrawals) | 84 (2 / 80 / 2) |
+| QSTR commitments posted | 21 |
 | Setup, withdrawal, exit and fraud claims checked against chain | 13 of 13 |
-| Median time from batch submit to QSTR post | 2 min 16 s |
+| Median time from batch submit to QSTR post | 2 min 18 s |
 | Longest time from batch submit to QSTR post | 663 min 21 s |
 
-Batches 3 to 8 and 10 to 17 went from submit to QSTR in 2 min 3 s to 5 min 13 s. Batches 0 to 2 waited in the prove queue for a fix. Batch 9 was submitted while the prover machine was shutting down; the saved job resumed on restart and proved it 663 min later, by which time the batch was already final.
+Batches 3 to 8 and 10 to 18 went from submit to QSTR in 2 min 3 s to 5 min 13 s. Batches 0 to 2 waited in the prove queue for a fix. Batch 9 was submitted while the prover machine was shutting down; the saved job resumed on restart and proved it 663 min later, by which time the batch was already final. Batches 19 and 20 are the 64-entry load test: batch 19's 16 chunks proved on the shared Mac after a shutdown and restart and reached QSTR 225 min after submit, and batch 20 queued behind it (228 min); both were final before their proofs landed.
 
 Two withdrawals were paid. The demo user posted a signed 2 QOR withdrawal in batch 3 (tx `18EE89B6…`), and after batch 3 was final `MsgExecuteWithdrawal` paid it (tx `D4E2A450…`, height 10728212). For the second, the demo user sealed a signed 2.5 QOR withdrawal to the watchtower's ML-KEM-1024 key with release height 10738199. The watchtower opened it at that height and posted it in batch 5 (tx `C451E059…`), and after batch 5 was final `MsgExecuteWithdrawal` paid it (tx `E9C47252…`, height 10779352).
 
@@ -192,11 +192,11 @@ Recompute PROOF.md from chain (from the repo root; `--check` fails if any number
 ```bash
 pnpm install --frozen-lockfile
 node apps/archiver/src/cli.ts --rollup sdiqt-1 --from-height 10720040
-node scripts/proof.mjs --bundles https://sdiqt.xyz/bundles --at-height 10799151 --check
+node scripts/proof.mjs --bundles https://sdiqt.xyz/bundles --at-height 10853874 --check
 ```
 
 ```text
-{"snapshot_height":"10799151","batches":19,"proven":18,"final":17,"claims_ok":"13/13","changed":0}
+{"snapshot_height":"10853874","batches":22,"proven":21,"final":21,"claims_ok":"13/13","changed":0}
 ```
 
 Tests: `pnpm test` for TypeScript and `cargo test` for Rust.
