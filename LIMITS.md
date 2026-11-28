@@ -76,8 +76,8 @@ Measured on one Apple M5 machine (10 cores, 16 GB), SP1 6.10.0 CPU prover, signa
 | Proof size per chunk | about 1.27 MB (1,272,546 to 1,272,912 bytes) | `docs/prover-calibration.md` |
 | Peak resident memory per chunk | 9.8 to 10.8 GB | `docs/prover-calibration.md` |
 | Concurrent proofs | 1 | `apps/operator/src/prove-queue.ts` |
-| 64-entry batch | 16 chunks, about 45 to 48 min | `docs/prover-calibration.md` |
-| Sustained throughput | about 86 signed entries per hour | 4 entries per 168 s chunk: 3,600 / 168 x 4 = 85.7 |
+| 64-entry batch | 16 chunks; 45 to 48 min projected on an idle machine, 72 min (4,341 s) measured on a shared 16 GB Mac (batch 19) | `docs/prover-calibration.md` |
+| Sustained throughput | about 86 signed entries per hour idle, about 53 measured shared | idle: 3,600 / 168 x 4 = 85.7; shared: 64 entries in 4,341 s (batch 19) |
 | Measured submit-to-QSTR latency | median 1,033 s, longest 1,129 s, over 4 batches | `docs/counts.json`; [PROOF.md](PROOF.md) |
 
 An 11-entry chunk (11.6M cycles) fails during compression on this machine, which is why the chunk caps sit at 4 entries and 6.1M cycles.
